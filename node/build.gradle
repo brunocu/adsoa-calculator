@@ -1,0 +1,23 @@
+plugins {
+    id 'application'
+}
+
+group 'io.brunocu'
+
+repositories {
+    mavenCentral()
+    gradlePluginPortal()
+}
+
+compileJava {
+    //noinspection GroovyAccessibility
+    options.release = 8
+}
+
+jar {
+    archiveFileName = "${project.name}.jar"
+}
+
+application {
+    mainClass = 'io.brunocu.Node'
+}

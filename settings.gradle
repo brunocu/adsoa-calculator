@@ -1,2 +1,3 @@
-rootProject.name = 'Distributed'
+rootProject.name = 'distributed'
+include 'node'
 
