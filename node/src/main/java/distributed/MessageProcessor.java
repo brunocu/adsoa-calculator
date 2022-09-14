@@ -22,7 +22,7 @@ public class MessageProcessor implements Runnable {
         System.out.println("Starting MessageProcessor task");
         while (true) {
             try {
-                int readReady = this.readSelector.selectNow();
+                int readReady = this.readSelector.select();
 
                 if (readReady > 0) {
                     Set<SelectionKey> selectedKeys = this.readSelector.selectedKeys();
@@ -32,13 +32,22 @@ public class MessageProcessor implements Runnable {
                     while (keyIterator.hasNext()) {
                         SelectionKey key = keyIterator.next();
                         SocketChannel socketChannel = (SocketChannel) key.channel();
-
                         // get Object size
-                        socketChannel.read(lengthByteBuffer);
-                        ByteBuffer readByteBuffer = ByteBuffer.allocate(Integer.BYTES + lengthByteBuffer.getInt(0));
+                        int bytesRead = socketChannel.read(lengthByteBuffer);
+                        if (bytesRead == -1) {
+                            // connection closed
+                            socketChannel.close();
+                            keyIterator.remove();
+                            System.out.println("Client connection closed");
+                            continue;
+                        }
+                        lengthByteBuffer.flip();
+                        ByteBuffer readByteBuffer = ByteBuffer.allocate(Integer.BYTES + lengthByteBuffer.getInt());
                         // read bytes into buffer
                         readByteBuffer.put(lengthByteBuffer.array());
                         socketChannel.read(readByteBuffer);
+                        //noinspection UnnecessaryToStringCall
+                        System.out.println("Client message: " + readByteBuffer.toString());
                         // broadcast data to other channels
                         readByteBuffer.flip();
                         Set<SelectionKey> keySet = this.readSelector.keys();
@@ -50,7 +59,6 @@ public class MessageProcessor implements Runnable {
                                 readByteBuffer.rewind();
                             }
                         }
-
                         // cleanup
                         lengthByteBuffer.clear();
                         keyIterator.remove();

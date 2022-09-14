@@ -29,7 +29,9 @@ public class SocketAcceptor implements Runnable {
                 System.out.println("Accepting connection");
                 socketChannel.configureBlocking(false);
                 socketChannel.register(readSelector, SelectionKey.OP_READ);
-                System.out.println("Client Channel connected");
+                System.out.println("Client channel created");
+                // force MessageProcessor to requeue
+                readSelector.wakeup();
             }
         } catch (IOException e) {
             e.printStackTrace();

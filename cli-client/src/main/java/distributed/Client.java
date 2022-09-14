@@ -53,7 +53,7 @@ public class Client {
                 outputStream.writeObject(message);
                 outputStream.close();
                 final ByteBuffer writeByteBuffer = ByteBuffer.wrap(arrayOutputStream.toByteArray());
-                writeByteBuffer.putInt(0, arrayOutputStream.size()-4);
+                writeByteBuffer.putInt(0, arrayOutputStream.size() - 4);
                 socketChannel.write(writeByteBuffer);
             }
         }
