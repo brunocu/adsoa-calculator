@@ -1,14 +1,20 @@
 package distributed;
 
+import distributed.message.ContentCode;
 import distributed.message.Message;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectOutputStream;
-import java.net.Socket;
+import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.nio.channels.SocketChannel;
+import java.util.stream.IntStream;
+
 public class Client {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         int port = 50000; // default port
         if (args.length > 0) {
             try {
@@ -19,39 +25,37 @@ public class Client {
         }
         System.out.println("Calling server on " + port + "...");
         try (
-                Socket socket = new Socket("localhost", port);
-                ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
-                BufferedReader in = new BufferedReader(
-                        new InputStreamReader(socket.getInputStream())
-                )
+                SocketChannel socketChannel = SocketChannel.open()
         ) {
+            socketChannel.connect(new InetSocketAddress(port));
             System.out.println("Connected!");
             BufferedReader stdIn = new BufferedReader(
                     new InputStreamReader(System.in)
             );
-            String userLine, serverLine;
+            String userLine;
 
-                do {
-                    System.out.print("$ ");
-                    userLine = stdIn.readLine();
-                    // check for user exit
-                    if (userLine.equals("exit"))
-                        break;
-                    // send to server
-                    if (userLine != null) {
-                        Message message = new Message(body);
-//                        out.writeObject(message);
-                    } else {
-                        System.err.println("Bad user message!");
-                        socket.close();
-                        System.exit(1);
-                    }
-                    serverLine = in.readLine();
-                    System.out.println("Server: " + serverLine);
-                } while (serverLine != null);
-        } catch (IOException e) {
-            System.err.println("No host on " + port);
-            System.exit(-1);
+            while (true) {
+                System.out.print("$ ");
+                userLine = stdIn.readLine();
+                // check for user exit
+                if (userLine.equals("exit"))
+                    break;
+
+                // Build message
+                Message message = new Message(ContentCode.OPERATION, userLine);
+                // Prepare array buffer
+                ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
+                // make space for size Int at beginning of array
+                IntStream.range(0, 4).forEach(i ->
+                        arrayOutputStream.write(0)
+                );
+                ObjectOutputStream outputStream = new ObjectOutputStream(arrayOutputStream);
+                outputStream.writeObject(message);
+                outputStream.close();
+                final ByteBuffer writeByteBuffer = ByteBuffer.wrap(arrayOutputStream.toByteArray());
+                writeByteBuffer.putInt(0, arrayOutputStream.size()-4);
+                socketChannel.write(writeByteBuffer);
+            }
         }
     }
 }
