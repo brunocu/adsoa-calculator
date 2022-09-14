@@ -1,4 +1,4 @@
-package io.brunocu;
+package distributed;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -20,7 +20,7 @@ public class SocketAcceptor implements Runnable {
     public void run() {
         System.out.println("Starting SocketAcceptor task");
         try (
-                ServerSocketChannel serverSocket = ServerSocketChannel.open();
+                ServerSocketChannel serverSocket = ServerSocketChannel.open()
         ) {
             serverSocket.bind(new InetSocketAddress(port));
             System.out.println("Listening on port " + port + "...");

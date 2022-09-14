@@ -2,16 +2,10 @@ plugins {
     id 'application'
 }
 
-group 'io.brunocu'
 
 repositories {
     mavenCentral()
     gradlePluginPortal()
-}
-
-compileJava {
-    //noinspection GroovyAccessibility
-    options.release = 8
 }
 
 jar {
@@ -19,5 +13,5 @@ jar {
 }
 
 application {
-    mainClass = 'io.brunocu.Node'
+    mainClass = 'distributed.Node'
 }

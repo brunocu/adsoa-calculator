@@ -1,12 +1,12 @@
-package io.brunocu;
+package distributed;
+
+import distributed.message.Message;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
-
-
 public class Client {
     public static void main(String[] args) {
         int port = 50000; // default port
@@ -23,7 +23,7 @@ public class Client {
                 ObjectOutputStream out = new ObjectOutputStream(socket.getOutputStream());
                 BufferedReader in = new BufferedReader(
                         new InputStreamReader(socket.getInputStream())
-                );
+                )
         ) {
             System.out.println("Connected!");
             BufferedReader stdIn = new BufferedReader(
@@ -39,6 +39,7 @@ public class Client {
                         break;
                     // send to server
                     if (userLine != null) {
+                        Message message = new Message(body);
 //                        out.writeObject(message);
                     } else {
                         System.err.println("Bad user message!");
