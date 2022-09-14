@@ -5,19 +5,18 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.util.Iterator;
 import java.util.Set;
 
 public class MessageProcessor implements Runnable {
     private final Selector readSelector;
-    private final ByteBuffer readByteBuffer = ByteBuffer.allocate(1024 * 1024);
+    private final ByteBuffer lengthByteBuffer = ByteBuffer.allocate(Integer.BYTES);
 
     public MessageProcessor(Selector readSelector) {
         this.readSelector = readSelector;
     }
 
+    @SuppressWarnings("resource")
     @Override
     public void run() {
         System.out.println("Starting MessageProcessor task");
@@ -29,21 +28,31 @@ public class MessageProcessor implements Runnable {
                     Set<SelectionKey> selectedKeys = this.readSelector.selectedKeys();
                     Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
 
+                    // while instead of for-each because we (may) mutate set
                     while (keyIterator.hasNext()) {
                         SelectionKey key = keyIterator.next();
                         SocketChannel socketChannel = (SocketChannel) key.channel();
-                        int bytesRead = socketChannel.read(readByteBuffer);
+
+                        // get Object size
+                        socketChannel.read(lengthByteBuffer);
+                        ByteBuffer readByteBuffer = ByteBuffer.allocate(Integer.BYTES + lengthByteBuffer.getInt(0));
+                        // read bytes into buffer
+                        readByteBuffer.put(lengthByteBuffer.array());
+                        socketChannel.read(readByteBuffer);
+                        // broadcast data to other channels
                         readByteBuffer.flip();
-
-                        if(readByteBuffer.remaining() == 0){
-                            // empty message
-                            readByteBuffer.clear();
-                            return;
+                        Set<SelectionKey> keySet = this.readSelector.keys();
+                        for (SelectionKey otherKey : keySet) {
+                            // do not resend to same client
+                            if (key != otherKey) {
+                                SocketChannel otherSocketChannel = (SocketChannel) otherKey.channel();
+                                otherSocketChannel.write(readByteBuffer);
+                                readByteBuffer.rewind();
+                            }
                         }
-                        Charset utf8Cset = StandardCharsets.UTF_8;
-                        System.out.println(utf8Cset.decode(readByteBuffer));
-                        System.out.printf("Remaining: %d", readByteBuffer.remaining());
 
+                        // cleanup
+                        lengthByteBuffer.clear();
                         keyIterator.remove();
                     }
                 }

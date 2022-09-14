@@ -13,7 +13,7 @@ public class Node {
         this.readSelector = Selector.open();
     }
 
-    public void start() throws InterruptedException {
+    public void start() {
         Thread socketThread = new Thread(new SocketAcceptor(port, readSelector));
         Thread processorThread = new Thread(new MessageProcessor(readSelector));
 
@@ -21,9 +21,17 @@ public class Node {
         processorThread.start();
     }
 
-    public static void main(String[] args) throws IOException, InterruptedException {
-        Node node = new Node(50000);
+    public static void main(String[] args) throws IOException {
+        int port = 50000; // default port
+        if (args.length > 0) {
+            try {
+                port = Integer.parseInt(args[0]);
+            } catch (NumberFormatException e) {
+                System.out.println("Bad port name, using default: " + port);
+            }
+        }
 
+        Node node = new Node(port);
         node.start();
     }
 }
