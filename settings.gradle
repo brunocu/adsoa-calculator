@@ -1,4 +1,6 @@
 rootProject.name = 'distributed'
+include 'shared'
 include 'node'
 include 'cli-client'
-include 'shared'
+include 'server'
+

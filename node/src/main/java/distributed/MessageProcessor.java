@@ -1,6 +1,7 @@
 package distributed;
 
 import java.io.IOException;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -33,9 +34,9 @@ public class MessageProcessor implements Runnable {
                         SelectionKey key = keyIterator.next();
                         SocketChannel socketChannel = (SocketChannel) key.channel();
                         // get Object size
-                        int bytesRead = socketChannel.read(lengthByteBuffer);
-                        if (bytesRead == -1) {
-                            // connection closed
+                        try {
+                            socketChannel.read(lengthByteBuffer);
+                        } catch (SocketException e) {
                             socketChannel.close();
                             keyIterator.remove();
                             System.out.println("Client connection closed");
