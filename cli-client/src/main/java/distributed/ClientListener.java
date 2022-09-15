@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
-import java.nio.channels.AsynchronousCloseException;
 import java.nio.channels.Channels;
 import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.SocketChannel;
@@ -38,7 +37,7 @@ public class ClientListener implements Runnable {
 
                 System.out.println("\nServer: " + message.getBody());
                 System.out.print("$ ");
-            } catch (ClosedByInterruptException e){
+            } catch (ClosedByInterruptException e) {
                 // end gracefully
                 break;
             } catch (SocketException e) {

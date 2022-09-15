@@ -3,6 +3,9 @@ package distributed;
 import distributed.message.ContentCode;
 import distributed.message.Message;
 
+import javax.script.ScriptEngine;
+import javax.script.ScriptEngineManager;
+import javax.script.ScriptException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -16,9 +19,13 @@ import java.util.stream.IntStream;
 
 public class Server {
     private final int port;
-
+    private final ScriptEngine scriptEngine;
     public Server(int port) {
         this.port = port;
+
+        ScriptEngineManager scriptEngineManager = new ScriptEngineManager();
+        System.out.println("Engines: " + scriptEngineManager.getEngineFactories());
+        scriptEngine = scriptEngineManager.getEngineByName("JavaScript");
     }
 
     public void start() throws IOException {
@@ -37,10 +44,20 @@ public class Server {
                 // process only ContentCode.OPERATION
                 if (message.getContentCode() != ContentCode.OPERATION)
                     continue;
-                System.out.println("Message: " + message.getBody());
-                // TODO do stuff
+                String messageBody = message.getBody();
+                System.out.println("Message: " + messageBody);
+
+                String responseBody;
+                // do stuff
+                try {
+                    responseBody = scriptEngine.eval(messageBody).toString();
+                } catch (ScriptException e) {
+                    responseBody = "EXPR ERR";
+                }
+
                 // return message
-                Message response = new Message(ContentCode.OPERATION, message.getBody());
+                System.out.println("Response: " + responseBody);
+                Message response = new Message(ContentCode.RESPONSE, responseBody);
                 // Prepare array buffer
                 ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
                 // leave space for size Int at beginning of array

@@ -10,6 +10,8 @@ repositories {
 }
 
 dependencies {
+    implementation 'org.graalvm.js:js:22.2.0'
+    implementation 'org.graalvm.js:js-scriptengine:22.2.0'
     implementation project(':shared')
 }
 
