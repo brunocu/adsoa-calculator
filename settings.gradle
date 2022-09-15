@@ -3,4 +3,5 @@ include 'shared'
 include 'node'
 include 'cli-client'
 include 'server'
+include 'clientFX'
 
