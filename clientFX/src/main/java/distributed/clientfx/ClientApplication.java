@@ -14,9 +14,8 @@ public class ClientApplication extends Application {
         Parent root = FXMLLoader.load(getClass().getResource("scene.fxml"));
 
         Scene scene = new Scene(root);
-//        scene.getStylesheets().add(getClass().getResource("styles.css").toExternalForm());  // stylesheet
 
-        stage.setTitle("JavaFX and Gradle");
+        stage.setTitle("Calculadora");
         stage.setScene(scene);
         stage.show();
     }

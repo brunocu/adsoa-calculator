@@ -8,13 +8,17 @@ repositories {
     mavenCentral()
 }
 
+dependencies {
+    implementation project(':shared')
+}
+
 application {
     mainModule = 'distributed.clientfx'
     mainClass = 'distributed.clientfx.ClientApplication'
 }
 
 javafx {
-    version = "18"
+    version = "17"
     modules = [ 'javafx.controls', 'javafx.fxml' ]
 }
 
