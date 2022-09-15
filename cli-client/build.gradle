@@ -1,25 +1,9 @@
 plugins {
-    id 'application'
-    id 'com.github.johnrengelman.shadow' version '7.1.2'
-}
-
-
-repositories {
-    mavenCentral()
-    gradlePluginPortal()
+    id 'shadow-conventions'
 }
 
 dependencies {
     implementation project(':shared')
-}
-
-jar {
-    archiveFileName = "${project.name}.jar"
-}
-
-shadowJar {
-    //noinspection GroovyAccessibility
-    archiveClassifier = "uber"
 }
 
 application {

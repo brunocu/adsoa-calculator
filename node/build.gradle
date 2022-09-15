@@ -1,14 +1,5 @@
 plugins {
-    id 'application'
-}
-
-repositories {
-    mavenCentral()
-    gradlePluginPortal()
-}
-
-jar {
-    archiveFileName = "${project.name}.jar"
+    id 'shadow-conventions'
 }
 
 application {
