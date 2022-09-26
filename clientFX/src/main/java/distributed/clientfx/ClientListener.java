@@ -39,26 +39,23 @@ public class ClientListener implements Runnable {
                 if (message.getContentCode() != ContentCode.RESPONSE)
                     continue;
 
-                logln("Server: " + message.getBody());
+                logAppend("Server: " + message.getBody());
             } catch (ClosedByInterruptException | SocketException e) {
                 // end gracefully
                 break;
             } catch (IOException | ClassNotFoundException e) {
-                logln(e.getMessage());
+                logAppend(e.getMessage());
             } finally {
                 //cleanup
                 lengthByteBuffer.clear();
             }
         }
-        logln("Server disconnected!");
+        logAppend("Server disconnected!");
     }
 
-    private void logln(String message) {
-        Platform.runLater(new Runnable() {
-            @Override
-            public void run() {
-                txtLog.setText(txtLog.getText() + "\n" + message);
-            }
+    private void logAppend(String message) {
+        Platform.runLater(() -> {
+            txtLog.setText(txtLog.getText() + "\n" + message);
         });
     }
 }

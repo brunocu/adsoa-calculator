@@ -26,20 +26,26 @@ public class FXMLController {
     private SocketChannel socketChannel = null;
 
     public void initialize() {
-        txtLog.setText("Calling server on 50000...");
+        txtLog.appendText("Calling server on 50000...");
         try {
             socketChannel = SocketChannel.open(new InetSocketAddress(50000));
-            logln("Connected!");
+            txtLog.appendText("\nConnected!");
 
             Thread listenerThread = new Thread(new ClientListener(socketChannel, txtLog));
             listenerThread.start();
         } catch (IOException e) {
-            logln(e.getMessage());
+            txtLog.appendText("\n" + e.getMessage());
         }
     }
 
-    private void logln(String string) {
-        txtLog.setText(txtLog.getText() + "\n" + string);
+    public void shutdown() {
+        try {
+            socketChannel.close();
+        } catch (NullPointerException e) {
+            // ok
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @FXML
@@ -47,7 +53,7 @@ public class FXMLController {
         if (socketChannel.isConnected()) {
             try {
                 String messageBody = txtInput.getText();
-                logln("User: " + messageBody);
+                txtLog.appendText("\nUser: " + messageBody);
                 txtInput.clear();
                 // Build message
                 Message message = new Message(ContentCode.OPERATION, messageBody);
@@ -64,10 +70,10 @@ public class FXMLController {
                 writeByteBuffer.putInt(0, arrayOutputStream.size() - 4);
                 socketChannel.write(writeByteBuffer);
             } catch (IOException e) {
-                logln(e.getMessage());
+                txtLog.appendText("\n" + e.getMessage());
             }
         } else {
-            logln("No server connection");
+            txtLog.appendText("\nNo server connection");
         }
     }
 
