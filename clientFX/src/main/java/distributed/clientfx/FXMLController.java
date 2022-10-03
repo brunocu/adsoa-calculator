@@ -5,6 +5,7 @@ import distributed.message.Message;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 
@@ -23,6 +24,11 @@ public class FXMLController {
     private TextField txtInput;
     @FXML
     public Button btnDo;
+    @FXML
+    private Label labelResult;
+    @FXML
+    private Label labelHistory;
+
     private SocketChannel socketChannel = null;
 
     public void initialize() {
