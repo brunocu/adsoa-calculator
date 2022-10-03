@@ -3,6 +3,7 @@ package distributed.clientfx;
 import distributed.message.ContentCode;
 import distributed.message.Message;
 import javafx.application.Platform;
+import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 
 import java.io.IOException;
@@ -17,10 +18,12 @@ public class ClientListener implements Runnable {
     private final SocketChannel socketChannel;
     private final ByteBuffer lengthByteBuffer = ByteBuffer.allocate(Integer.BYTES);
     private final TextArea txtLog;
+    private final Label labelResult;
 
-    public ClientListener(SocketChannel socketChannel, TextArea txtLog) {
+    public ClientListener(SocketChannel socketChannel, TextArea txtLog, Label labelResult) {
         this.socketChannel = socketChannel;
         this.txtLog = txtLog;
+        this.labelResult = labelResult;
     }
 
     @Override
@@ -39,7 +42,11 @@ public class ClientListener implements Runnable {
                 if (message.getContentCode() != ContentCode.RESPONSE)
                     continue;
 
-                logAppend("Server: " + message.getBody());
+                String messageBody = message.getBody();
+                Platform.runLater(() -> {
+                    txtLog.appendText("\nServer: " + messageBody);
+                    labelResult.setText(messageBody);
+                });
             } catch (ClosedByInterruptException | SocketException e) {
                 // end gracefully
                 break;
@@ -55,7 +62,7 @@ public class ClientListener implements Runnable {
 
     private void logAppend(String message) {
         Platform.runLater(() -> {
-            txtLog.setText(txtLog.getText() + "\n" + message);
+            txtLog.appendText("\n" + message);
         });
     }
 }

@@ -2,12 +2,12 @@ package distributed.clientfx;
 
 import distributed.message.ContentCode;
 import distributed.message.Message;
+import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
-import javafx.scene.control.TextField;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -21,10 +21,6 @@ public class FXMLController {
     @FXML
     private TextArea txtLog;
     @FXML
-    private TextField txtInput;
-    @FXML
-    public Button btnDo;
-    @FXML
     private Label labelResult;
     @FXML
     private Label labelHistory;
@@ -37,7 +33,7 @@ public class FXMLController {
             socketChannel = SocketChannel.open(new InetSocketAddress(50000));
             txtLog.appendText("\nConnected!");
 
-            Thread listenerThread = new Thread(new ClientListener(socketChannel, txtLog));
+            Thread listenerThread = new Thread(new ClientListener(socketChannel, txtLog, labelResult));
             listenerThread.start();
         } catch (IOException e) {
             txtLog.appendText("\n" + e.getMessage());
@@ -54,13 +50,12 @@ public class FXMLController {
         }
     }
 
-    @FXML
-    private void sendMessage(ActionEvent event) {
-        if (socketChannel.isConnected()) {
+    private void sendMessage(String operationMessage) {
+        logAppend("User: " + operationMessage);
+        if (socketChannel != null && socketChannel.isConnected()) {
             try {
-                String messageBody = txtInput.getText();
-                txtLog.appendText("\nUser: " + messageBody);
-                txtInput.clear();
+                // Parse message
+                String messageBody = operationMessage.replace('\u00F7', '/').replace('\u00D7', '*');
                 // Build message
                 Message message = new Message(ContentCode.OPERATION, messageBody);
                 // Prepare array buffer
@@ -76,11 +71,112 @@ public class FXMLController {
                 writeByteBuffer.putInt(0, arrayOutputStream.size() - 4);
                 socketChannel.write(writeByteBuffer);
             } catch (IOException e) {
-                txtLog.appendText("\n" + e.getMessage());
+                logAppend(e.getMessage());
             }
         } else {
-            txtLog.appendText("\nNo server connection");
+            logAppend("No server connection");
         }
     }
 
+    private void logAppend(String message) {
+        Platform.runLater(() -> {
+            txtLog.appendText("\n" + message);
+        });
+    }
+
+    @FXML
+    private void processNumber(ActionEvent event) {
+        String buttonText = ((Button) event.getSource()).getText();
+        String resultText = labelResult.getText();
+        if (resultText.equals("0"))
+            labelResult.setText(buttonText);
+        else
+            labelResult.setText(resultText + buttonText);
+    }
+
+    @FXML
+    private void processDot(ActionEvent event) {
+        String resultText = labelResult.getText();
+        if (!resultText.contains(".")) {
+            labelResult.setText(resultText + ".");
+        }
+    }
+
+    @FXML
+    private void processOperator(ActionEvent event) {
+        String operator = ((Button) event.getSource()).getText();
+        String resultText = labelResult.getText();
+        String historyText = labelHistory.getText();
+        String operationText;
+        if (resultText.startsWith("-"))
+            operationText = "(" + resultText + ")" + operator;
+        else
+            operationText = resultText + operator;
+
+        if (historyText.matches("([0-9]+[^0-9])+$"))
+            labelHistory.setText(historyText + operationText);
+        else
+            labelHistory.setText(operationText);
+
+        labelResult.setText("0");
+    }
+
+    @FXML
+    private void processNegate(ActionEvent event) {
+        String resultText = labelResult.getText();
+        if (!resultText.equals("0")) {
+            if (resultText.startsWith("-"))
+                labelResult.setText(resultText.substring(1));
+            else
+                labelResult.setText("-" + resultText);
+        }
+    }
+
+    @FXML
+    private void clearFunction(ActionEvent event) {
+        labelResult.setText("0");
+    }
+
+    @FXML
+    private void clearEverythingFunction(ActionEvent event) {
+        labelResult.setText("0");
+        labelHistory.setText("");
+    }
+
+    @FXML
+    private void eraseFunction(ActionEvent event) {
+        String resultText = labelResult.getText();
+        int lenLimit = !resultText.startsWith("-") ? 1 : 2;
+        if (resultText.length() > lenLimit)
+            labelResult.setText(resultText.substring(0, resultText.length() - 1));
+        else
+            labelResult.setText("0");
+    }
+
+    @FXML
+    private void processCalculate(ActionEvent event) {
+        String resultText = labelResult.getText();
+        String historyText = labelHistory.getText();
+
+        String operationText;
+        if (resultText.startsWith("-"))
+            operationText = "(" + resultText + ")";
+        else
+            operationText = resultText;
+
+        String operationMessage;
+        if (historyText.matches("([0-9]+[^0-9])+$"))
+            operationMessage = historyText + operationText;
+        else if (historyText.isEmpty())
+            operationMessage = operationText;
+        else
+            operationMessage = historyText;
+
+        labelHistory.setText(operationMessage);
+        labelResult.setText("0");
+        // send message asynchronously
+        new Thread(() -> {
+            sendMessage(operationMessage);
+        }).start();
+    }
 }
