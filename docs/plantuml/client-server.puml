@@ -1,0 +1,14 @@
+@startuml client-server
+'sequence diagram
+participant Client
+activate Client
+Client -> Server: Request
+deactivate Client
+activate Server
+|||
+Server -> Client: Reply
+deactivate Server
+activate Client
+|||
+
+@enduml

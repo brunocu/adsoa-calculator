@@ -1,0 +1,19 @@
+@startuml message
+'class diagram
+' top to bottom direction
+skinparam linetype ortho
+
+enum ContentCode {
+  OPERATION
+  RESPONSE
+}
+hide ContentCode methods
+class Message <<Immutable>> {
+  - body: String
+  - contentCode: ContentCode
+  + getContentCode(): ContentCode
+  + getBody(): String
+}
+
+Message     "1" *-- "1" ContentCode
+@enduml

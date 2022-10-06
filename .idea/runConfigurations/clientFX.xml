@@ -1,0 +1,10 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="clientFX" type="JarApplication" singleton="false">
+    <option name="JAR_PATH" value="$PROJECT_DIR$/clientFX/build/libs/clientFX.jar" />
+    <option name="WORKING_DIRECTORY" value="C:\Users\bruno\IdeaProjects\distributed" />
+    <option name="ALTERNATIVE_JRE_PATH" />
+    <method v="2">
+      <option name="Gradle.BeforeRunTask" enabled="true" tasks="jar" externalProjectPath="$PROJECT_DIR$/clientFX" vmOptions="" scriptParameters="" />
+    </method>
+  </configuration>
+</component>
