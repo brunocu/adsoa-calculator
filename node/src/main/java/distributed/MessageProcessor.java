@@ -33,13 +33,14 @@ public class MessageProcessor implements Runnable {
                     while (keyIterator.hasNext()) {
                         SelectionKey key = keyIterator.next();
                         SocketChannel socketChannel = (SocketChannel) key.channel();
+                        int remotePort = (Integer) key.attachment();
                         // get Object size
                         try {
                             socketChannel.read(lengthByteBuffer);
                         } catch (SocketException e) {
                             socketChannel.close();
                             keyIterator.remove();
-                            System.out.println("Client connection closed");
+                            System.out.println("[" + remotePort + "] Client connection closed");
                             continue;
                         }
                         lengthByteBuffer.flip();
@@ -48,7 +49,7 @@ public class MessageProcessor implements Runnable {
                         readByteBuffer.put(lengthByteBuffer.array());
                         socketChannel.read(readByteBuffer);
                         //noinspection UnnecessaryToStringCall
-                        System.out.println("Client message: " + readByteBuffer.toString());
+                        System.out.println("[" + remotePort + "] Client message: " + readByteBuffer.toString());
                         // broadcast data to other channels
                         readByteBuffer.flip();
                         Set<SelectionKey> keySet = this.readSelector.keys();

@@ -31,7 +31,8 @@ public class FXMLController {
         txtLog.appendText("Calling server on 50000...");
         try {
             socketChannel = SocketChannel.open(new InetSocketAddress(50000));
-            txtLog.appendText("\nConnected!");
+            int localPort = ((InetSocketAddress) socketChannel.getLocalAddress()).getPort();
+            txtLog.appendText("\nConnected: " + localPort);
 
             Thread listenerThread = new Thread(new ClientListener(socketChannel, txtLog, labelResult));
             listenerThread.start();

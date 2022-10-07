@@ -1,10 +1,23 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="clientFX" type="JarApplication" singleton="false">
-    <option name="JAR_PATH" value="$PROJECT_DIR$/clientFX/build/libs/clientFX.jar" />
-    <option name="WORKING_DIRECTORY" value="C:\Users\bruno\IdeaProjects\distributed" />
-    <option name="ALTERNATIVE_JRE_PATH" />
-    <method v="2">
-      <option name="Gradle.BeforeRunTask" enabled="true" tasks="jar" externalProjectPath="$PROJECT_DIR$/clientFX" vmOptions="" scriptParameters="" />
-    </method>
+  <configuration default="false" name="clientFX" type="GradleRunConfiguration" factoryName="Gradle" singleton="false">
+    <ExternalSystemSettings>
+      <option name="executionName" />
+      <option name="externalProjectPath" value="$PROJECT_DIR$/clientFX" />
+      <option name="externalSystemIdString" value="GRADLE" />
+      <option name="scriptParameters" value="" />
+      <option name="taskDescriptions">
+        <list />
+      </option>
+      <option name="taskNames">
+        <list>
+          <option value="run" />
+        </list>
+      </option>
+      <option name="vmOptions" />
+    </ExternalSystemSettings>
+    <ExternalSystemDebugServerProcess>true</ExternalSystemDebugServerProcess>
+    <ExternalSystemReattachDebugProcess>true</ExternalSystemReattachDebugProcess>
+    <DebugAllEnabled>false</DebugAllEnabled>
+    <method v="2" />
   </configuration>
 </component>

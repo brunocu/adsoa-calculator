@@ -1,6 +1,7 @@
 package distributed;
 
 import java.io.IOException;
+import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -27,12 +28,16 @@ public class SocketAcceptor implements Runnable {
             while (true) {
                 SocketChannel socketChannel = serverSocket.accept();
                 System.out.println("Accepting connection");
+                int remotePort = ((InetSocketAddress) socketChannel.getRemoteAddress()).getPort();
                 socketChannel.configureBlocking(false);
-                socketChannel.register(readSelector, SelectionKey.OP_READ);
-                System.out.println("Client channel created");
+                socketChannel.register(readSelector, SelectionKey.OP_READ, remotePort);
+                System.out.println("Client channel [" + remotePort + "] created");
                 // force MessageProcessor to requeue
                 readSelector.wakeup();
             }
+        } catch (BindException e) {
+            e.printStackTrace();
+            System.exit(-1);
         } catch (IOException e) {
             e.printStackTrace();
         }

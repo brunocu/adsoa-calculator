@@ -24,14 +24,15 @@ public class Server {
         this.port = port;
 
         ScriptEngineManager scriptEngineManager = new ScriptEngineManager();
-        System.out.println("Engines: " + scriptEngineManager.getEngineFactories());
         scriptEngine = scriptEngineManager.getEngineByName("JavaScript");
+        System.out.println("Engine: " + scriptEngine);
     }
 
     public void start() throws IOException {
         System.out.println("Calling server on " + port + "...");
         SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress(port));
-        System.out.println("Connected!");
+        int localPort = ((InetSocketAddress) socketChannel.getLocalAddress()).getPort();
+        System.out.println("Connected: " + localPort);
 
 
         while (socketChannel.isConnected()) {
