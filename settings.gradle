@@ -1,7 +1,6 @@
 rootProject.name = 'distributed'
 include 'shared'
 include 'data-field'
-include 'cli-client'
 include 'server'
 include 'clientFX'
 
