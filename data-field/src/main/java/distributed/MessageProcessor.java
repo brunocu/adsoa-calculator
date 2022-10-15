@@ -10,11 +10,11 @@ import java.util.Iterator;
 import java.util.Set;
 
 public class MessageProcessor implements Runnable {
-    private final Selector readSelector;
+    private final Selector cellSelector;
     private final ByteBuffer lengthByteBuffer = ByteBuffer.allocate(Integer.BYTES);
 
-    public MessageProcessor(Selector readSelector) {
-        this.readSelector = readSelector;
+    public MessageProcessor(Selector cellSelector) {
+        this.cellSelector = cellSelector;
     }
 
     @SuppressWarnings("resource")
@@ -23,10 +23,10 @@ public class MessageProcessor implements Runnable {
         System.out.println("Starting MessageProcessor task");
         while (true) {
             try {
-                int readReady = this.readSelector.select();
+                int readReady = this.cellSelector.select();
 
                 if (readReady > 0) {
-                    Set<SelectionKey> selectedKeys = this.readSelector.selectedKeys();
+                    Set<SelectionKey> selectedKeys = this.cellSelector.selectedKeys();
                     Iterator<SelectionKey> keyIterator = selectedKeys.iterator();
 
                     // while instead of for-each because we (may) mutate set
@@ -52,7 +52,7 @@ public class MessageProcessor implements Runnable {
                         System.out.println("[" + remotePort + "] Client message: " + readByteBuffer.toString());
                         // broadcast data to other channels
                         readByteBuffer.flip();
-                        Set<SelectionKey> keySet = this.readSelector.keys();
+                        Set<SelectionKey> keySet = this.cellSelector.keys();
                         for (SelectionKey otherKey : keySet) {
                             // do not resend to same client
                             if (key != otherKey) {
