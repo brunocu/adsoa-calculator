@@ -47,7 +47,7 @@ public class SocketAcceptor implements Runnable {
                 switch (handshakeChar) {
                     case 'C' -> {
                         socketChannel.register(cellSelector, SelectionKey.OP_READ, remotePort);
-                        System.out.println("Cell channel [" + remotePort + "] created");
+                        System.out.println("[" + remotePort + "] Cell channel created");
                         // force MessageProcessor to requeue
                         cellSelector.wakeup();
                     }

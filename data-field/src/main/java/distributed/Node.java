@@ -37,10 +37,12 @@ public class Node {
         openCommunicationChannel();
 
         Thread socketThread = new Thread(new SocketAcceptor(serverSocket, cellSelector, nodeSelector));
-        Thread processorThread = new Thread(new MessageProcessor(cellSelector));
+        Thread cellProcessorThread = new Thread(new CellMessageProcessor(cellSelector, nodeSelector));
+        Thread nodeProcessorThread = new Thread(new NodeMessageProcessor(cellSelector, nodeSelector));
 
         socketThread.start();
-        processorThread.start();
+        cellProcessorThread.start();
+        nodeProcessorThread.start();
     }
 
     private void bindSocket() throws IOException {
@@ -69,12 +71,11 @@ public class Node {
         for (int otherPort = portMin; otherPort < (portMin + portRange); otherPort++) {
             if (otherPort == port)
                 continue;
-            SocketChannel nodeSocketChannel;
             try {
-                nodeSocketChannel = SocketChannel.open(new InetSocketAddress(otherPort));
+                SocketChannel nodeSocketChannel = SocketChannel.open(new InetSocketAddress(otherPort));
                 nodeSocketChannel.write(handshakeBuffer);
-                System.out.println("Connecting to node on " + otherPort);
                 int localPort = ((InetSocketAddress) nodeSocketChannel.getLocalAddress()).getPort();
+                System.out.println("[" + localPort + "] Communication channel node on " + otherPort);
                 nodeSocketChannel.configureBlocking(false);
                 nodeSocketChannel.register(nodeSelector, SelectionKey.OP_READ, localPort);
             } catch (IOException e) {
