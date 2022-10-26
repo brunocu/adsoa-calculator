@@ -12,42 +12,53 @@ import javafx.scene.control.TextArea;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.stream.IntStream;
 
 public class FXMLController {
+    private static final char HANDSHAKE_CHAR = 'C';
+    private final ByteBuffer handshakeBuffer = ByteBuffer.wrap(new byte[]{(byte) HANDSHAKE_CHAR});
     @FXML
     private TextArea txtLog;
     @FXML
     private Label labelResult;
     @FXML
     private Label labelHistory;
-
     private SocketChannel socketChannel = null;
 
     public void initialize() {
-        txtLog.appendText("Calling server on 50000...");
-        try {
-            socketChannel = SocketChannel.open(new InetSocketAddress(50000));
-            int localPort = ((InetSocketAddress) socketChannel.getLocalAddress()).getPort();
-            txtLog.appendText("\nConnected: " + localPort);
+        txtLog.appendText("Min port: 50000");
+        txtLog.appendText("\nPort range: 100");
+        for (int porti = 50000; porti < (50000 + 100); porti++) {
+            txtLog.appendText("\nCalling server on " + porti);
+            try {
+                socketChannel = SocketChannel.open(new InetSocketAddress(porti));
+                socketChannel.write(handshakeBuffer);
+                int localPort = ((InetSocketAddress) socketChannel.getLocalAddress()).getPort();
+                txtLog.appendText("\n[" + localPort + "] Connected to " + porti);
 
-            Thread listenerThread = new Thread(new ClientListener(socketChannel, txtLog, labelResult));
-            listenerThread.start();
-        } catch (IOException e) {
-            txtLog.appendText("\n" + e.getMessage());
+                Thread listenerThread = new Thread(new ClientListener(socketChannel, txtLog, labelResult));
+                listenerThread.start();
+                break;
+            } catch (ConnectException e) {
+                continue;
+            } catch (IOException e) {
+                txtLog.appendText("\n" + e.getMessage());
+                break;
+            }
         }
     }
 
     public void shutdown() {
-        try {
-            socketChannel.close();
-        } catch (NullPointerException e) {
-            // ok
-        } catch (IOException e) {
-            e.printStackTrace();
+        if (socketChannel != null) {
+            try {
+                socketChannel.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         }
     }
 

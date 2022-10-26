@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
@@ -18,10 +19,13 @@ import java.nio.channels.SocketChannel;
 import java.util.stream.IntStream;
 
 public class Server {
-    private final int port;
+    private static final char HANDSHAKE_CHAR = 'C';
+    private final ByteBuffer handshakeBuffer = ByteBuffer.wrap(new byte[]{(byte) HANDSHAKE_CHAR});
+    private final int minPort;
     private final ScriptEngine scriptEngine;
-    public Server(int port) {
-        this.port = port;
+
+    public Server(int minPort) {
+        this.minPort = minPort;
 
         ScriptEngineManager scriptEngineManager = new ScriptEngineManager();
         scriptEngine = scriptEngineManager.getEngineByName("JavaScript");
@@ -29,17 +33,35 @@ public class Server {
     }
 
     public void start() throws IOException {
-        System.out.println("Calling server on " + port + "...");
-        SocketChannel socketChannel = SocketChannel.open(new InetSocketAddress(port));
-        int localPort = ((InetSocketAddress) socketChannel.getLocalAddress()).getPort();
-        System.out.println("Connected: " + localPort);
+        SocketChannel socketChannel = null;
+        for (int porti = minPort; porti < (minPort + 100); porti++) {
+            System.out.println("Calling server on " + porti);
+            try {
+                socketChannel = SocketChannel.open(new InetSocketAddress(porti));
+                socketChannel.write(handshakeBuffer);
+                int localPort = ((InetSocketAddress) socketChannel.getLocalAddress()).getPort();
+                System.out.println("Connected: " + localPort);
+                break;
+            } catch (ConnectException e) {
+                continue;
+            }
+        }
+        if (socketChannel == null) {
+            // no available ports
+            System.out.println("No available Data Fields");
+            System.exit(-1);
+        }
 
 
         while (socketChannel.isConnected()) {
             try {
                 // discard header
-                socketChannel.socket().getInputStream().skip(Integer.BYTES);
-//                socketChannel.read(lengthByteBuffer);
+                int read = socketChannel.read(ByteBuffer.allocate(Integer.BYTES));
+                if (read == -1) {
+                    // end-of-stream
+                    System.out.println("\nServer closed connection!");
+                    break;
+                }
                 ObjectInputStream objectInputStream = new ObjectInputStream(Channels.newInputStream(socketChannel));
                 final Message message = (Message) objectInputStream.readObject();
                 // process only ContentCode.OPERATION
