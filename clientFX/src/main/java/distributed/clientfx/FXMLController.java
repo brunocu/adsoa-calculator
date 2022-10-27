@@ -2,54 +2,113 @@ package distributed.clientfx;
 
 import distributed.message.ContentCode;
 import distributed.message.Message;
+import distributed.message.MessageBuilder;
+import distributed.util.UID;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
+import javafx.scene.control.RadioButton;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
+import javafx.scene.control.ToggleGroup;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 
 public class FXMLController {
     private static final char HANDSHAKE_CHAR = 'C';
+    private static final int MINIMUM_ACK = 3;
     private final ByteBuffer handshakeBuffer = ByteBuffer.wrap(new byte[]{(byte) HANDSHAKE_CHAR});
+    private final ByteBuffer messageDataBuffer = ByteBuffer.allocate(2 * Float.BYTES);
+    private long uid;
+    private SocketChannel socketChannel = null;
+    private int requestNumber = 0;
+    private Float latestResult = null;
+    private final AtomicReference<Message> pendingMessageReference = new AtomicReference<>();
+    private final BlockingQueue<Message> requestQueue = new LinkedBlockingQueue<>();
+    private final ConcurrentSkipListSet<Long> acknowledgeSet = new ConcurrentSkipListSet<>();
+    private final Semaphore requestSemaphore = new Semaphore(-1);
+    //<editor-fold desc="FXML Nodes">
+    @FXML
+    private Label labelUID;
     @FXML
     private TextArea txtLog;
     @FXML
-    private Label labelResult;
+    private TextField txtLVal;
     @FXML
-    private Label labelHistory;
-    private SocketChannel socketChannel = null;
+    private TextField txtRVal;
+    @FXML
+    private TextField txtResult;
+    @FXML
+    private ToggleGroup toggleGroup;
+    @FXML
+    private RadioButton selLVal;
+    @FXML
+    private RadioButton selRVal;
+    //</editor-fold>
+    private static final UnaryOperator<TextFormatter.Change> FLOAT_FILTER = change -> {
+        String newText = change.getControlNewText();
+        if (newText.matches("[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)")) {
+            return change;
+        }
+        return null;
+    };
+    private Thread requestThread;
+    private Thread responseThread;
 
     public void initialize() {
-        txtLog.appendText("Min port: 50000");
-        txtLog.appendText("\nPort range: 100");
-        for (int porti = 50000; porti < (50000 + 100); porti++) {
-            txtLog.appendText("\nCalling server on " + porti);
+        txtLVal.setTextFormatter(
+                new TextFormatter<Float>(FLOAT_FILTER));
+
+        uid = UID.generateUID();
+        labelUID.setText("UID: " + Long.toHexString(uid).toUpperCase());
+
+        // connect to DataField
+        txtLog.appendText("Min port: 50000\n");
+        txtLog.appendText("Port range: 50100\n");
+        for (int port = 50000; port < 50100; port++) {
             try {
-                socketChannel = SocketChannel.open(new InetSocketAddress(porti));
+                socketChannel = SocketChannel.open(new InetSocketAddress(port));
                 socketChannel.write(handshakeBuffer);
                 int localPort = ((InetSocketAddress) socketChannel.getLocalAddress()).getPort();
-                txtLog.appendText("\n[" + localPort + "] Connected to " + porti);
+                txtLog.appendText("[" + localPort + "] Connected to " + port + "\n");
 
-                Thread listenerThread = new Thread(new ClientListener(socketChannel, txtLog, labelResult));
-                listenerThread.start();
+                requestThread = new Thread(new RequestSender());
+                responseThread = new Thread(new ResponseListener());
+
+                requestThread.start();
+                responseThread.start();
                 break;
             } catch (ConnectException e) {
                 continue;
             } catch (IOException e) {
-                txtLog.appendText("\n" + e.getMessage());
+                txtLog.appendText(e.getMessage() + "\n");
                 break;
             }
         }
+
+        if (socketChannel == null)
+            txtLog.appendText("No server found\n");
     }
 
     public void shutdown() {
@@ -62,133 +121,199 @@ public class FXMLController {
         }
     }
 
-    private void sendMessage(String operationMessage) {
-        logAppend("User: " + operationMessage);
-        if (socketChannel != null && socketChannel.isConnected()) {
-            try {
-                // Parse message
-                String messageBody = operationMessage.replace('\u00F7', '/').replace('\u00D7', '*');
-                // Build message
-                Message message = new Message(ContentCode.OPERATION, messageBody);
-                // Prepare array buffer
-                ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
-                // leave space for size Int at beginning of array
-                IntStream.range(0, Integer.BYTES).forEach(i ->
-                        arrayOutputStream.write(0)
-                );
-                ObjectOutputStream outputStream = new ObjectOutputStream(arrayOutputStream);
-                outputStream.writeObject(message);
-                outputStream.close();
-                final ByteBuffer writeByteBuffer = ByteBuffer.wrap(arrayOutputStream.toByteArray());
-                writeByteBuffer.putInt(0, arrayOutputStream.size() - 4);
-                socketChannel.write(writeByteBuffer);
-            } catch (IOException e) {
-                logAppend(e.getMessage());
-            }
-        } else {
-            logAppend("No server connection");
-        }
+    private void logAppend(String message) {
+        //noinspection CodeBlock2Expr
+        Platform.runLater(() -> {
+            txtLog.appendText(message + "\n");
+        });
     }
 
-    private void logAppend(String message) {
-        Platform.runLater(() -> {
-            txtLog.appendText("\n" + message);
-        });
+    @FXML
+    private void processOperator(ActionEvent event) {
+        if ((socketChannel == null) || !(socketChannel.isConnected())) {
+            logAppend("No server connection");
+            return;
+        }
+
+        String buttonText = ((Button) event.getSource()).getText();
+        ContentCode contentCode;
+        switch (buttonText) {
+            case "+" -> contentCode = ContentCode.ADD;
+            case "-" -> contentCode = ContentCode.SUB;
+            case "\u00D7" -> contentCode = ContentCode.MUL;
+            case "\u00F7" -> contentCode = ContentCode.DIV;
+            default -> throw new IllegalStateException("Unexpected value: " + buttonText);
+        }
+        // Build message buffer
+        messageDataBuffer.putFloat(Float.parseFloat(txtLVal.getText()));
+        messageDataBuffer.putFloat(Float.parseFloat(txtRVal.getText()));
+
+        Message requestMessage = new MessageBuilder().contentCode(contentCode)
+                                                     .requestUID(uid)
+                                                     .body(messageDataBuffer.array())
+                                                     .digestFingerprint(requestNumber++)
+                                                     .build();
+        requestQueue.add(requestMessage);
+        logAppend(String.format("[%016X] Request: %s%s%s",
+                requestMessage.fingerprint(),
+                txtLVal.getText(),
+                buttonText,
+                txtRVal.getText()));
+        messageDataBuffer.clear();
     }
 
     @FXML
     private void processNumber(ActionEvent event) {
         String buttonText = ((Button) event.getSource()).getText();
-        String resultText = labelResult.getText();
-        if (resultText.equals("0"))
-            labelResult.setText(buttonText);
-        else
-            labelResult.setText(resultText + buttonText);
+        TextField valTextField = (TextField) toggleGroup.getSelectedToggle().getUserData();
+        String resultText = valTextField.getText();
+        if (resultText.equals("0")) valTextField.setText(buttonText);
+        else valTextField.setText(resultText + buttonText);
     }
 
     @FXML
     private void processDot(ActionEvent event) {
-        String resultText = labelResult.getText();
+        TextField valTextField = (TextField) toggleGroup.getSelectedToggle().getUserData();
+        String resultText = valTextField.getText();
         if (!resultText.contains(".")) {
-            labelResult.setText(resultText + ".");
+            valTextField.setText(resultText + ".");
         }
     }
 
     @FXML
-    private void processOperator(ActionEvent event) {
-        String operator = ((Button) event.getSource()).getText();
-        String resultText = labelResult.getText();
-        String historyText = labelHistory.getText();
-        String operationText;
-        if (resultText.startsWith("-"))
-            operationText = "(" + resultText + ")" + operator;
-        else
-            operationText = resultText + operator;
-
-        if (historyText.matches("([0-9]+[^0-9])+$"))
-            labelHistory.setText(historyText + operationText);
-        else
-            labelHistory.setText(operationText);
-
-        labelResult.setText("0");
-    }
-
-    @FXML
     private void processNegate(ActionEvent event) {
-        String resultText = labelResult.getText();
+        TextField valTextField = (TextField) toggleGroup.getSelectedToggle().getUserData();
+        String resultText = valTextField.getText();
         if (!resultText.equals("0")) {
-            if (resultText.startsWith("-"))
-                labelResult.setText(resultText.substring(1));
-            else
-                labelResult.setText("-" + resultText);
+            if (resultText.startsWith("-")) valTextField.setText(resultText.substring(1));
+            else valTextField.setText("-" + resultText);
         }
     }
 
     @FXML
     private void clearFunction(ActionEvent event) {
-        labelResult.setText("0");
+        TextField valTextField = (TextField) toggleGroup.getSelectedToggle().getUserData();
+        valTextField.setText("0");
     }
 
     @FXML
     private void clearEverythingFunction(ActionEvent event) {
-        labelResult.setText("0");
-        labelHistory.setText("");
+        txtLVal.setText("0");
+        txtRVal.setText("0");
     }
 
     @FXML
     private void eraseFunction(ActionEvent event) {
-        String resultText = labelResult.getText();
+        TextField valTextField = (TextField) toggleGroup.getSelectedToggle().getUserData();
+        String resultText = valTextField.getText();
         int lenLimit = !resultText.startsWith("-") ? 1 : 2;
-        if (resultText.length() > lenLimit)
-            labelResult.setText(resultText.substring(0, resultText.length() - 1));
-        else
-            labelResult.setText("0");
+        if (resultText.length() > lenLimit) valTextField.setText(resultText.substring(0, resultText.length() - 1));
+        else valTextField.setText("0");
     }
 
-    @FXML
-    private void processCalculate(ActionEvent event) {
-        String resultText = labelResult.getText();
-        String historyText = labelHistory.getText();
+    private class ResponseListener implements Runnable {
+        private final ByteBuffer lengthByteBuffer = ByteBuffer.allocate(Integer.BYTES);
 
-        String operationText;
-        if (resultText.startsWith("-"))
-            operationText = "(" + resultText + ")";
-        else
-            operationText = resultText;
+        @Override
+        public void run() {
+            while (socketChannel.isConnected()) {
+                try {
+                    // get incoming object size
+                    socketChannel.read(lengthByteBuffer);
+                    lengthByteBuffer.flip();
+                    // discard header
+                    lengthByteBuffer.getInt();
+                    // read
+                    ObjectInputStream objectInputStream = new ObjectInputStream(Channels.newInputStream(socketChannel));
+                    final Message message = (Message) objectInputStream.readObject();
+                    // accept only ContentCode.RESPONSE messages
+                    // accept only messages directed for this cell
+                    if (message.requestUID() != uid)
+                        continue;
 
-        String operationMessage;
-        if (historyText.matches("([0-9]+[^0-9])+$"))
-            operationMessage = historyText + operationText;
-        else if (historyText.isEmpty())
-            operationMessage = operationText;
-        else
-            operationMessage = historyText;
+                    switch (message.contentCode()) {
+                        case ACK_ADD:
+                        case ACK_SUB:
+                        case ACK_MUL:
+                        case ACK_DIV:
+                            processAcknowledge(message.fingerprint(), message.serviceUID());
+                            break;
+                        case RES:
+                            processResult(message.body(), message.serviceUID());
+                            break;
+                    }
 
-        labelHistory.setText(operationMessage);
-        labelResult.setText("0");
-        // send message asynchronously
-        new Thread(() -> {
-            sendMessage(operationMessage);
-        }).start();
+
+                } catch (ClosedByInterruptException | SocketException e) {
+                    // end gracefully
+                    break;
+                } catch (IOException | ClassNotFoundException e) {
+                    logAppend(e.getMessage());
+                } finally {
+                    //cleanup
+                    lengthByteBuffer.clear();
+                }
+            }
+            logAppend("Server disconnected!");
+            requestThread.interrupt();
+        }
+
+        private void processResult(byte[] messageBody, long serviceUID) {
+            float messageResult = ByteBuffer.wrap(messageBody).getFloat();
+            logAppend(String.format("[%016X] Result: %f", serviceUID, messageResult));
+            latestResult = messageResult;
+        }
+
+        private void processAcknowledge(long messageHash, long serviceUID) {
+            if (messageHash == pendingMessageReference.get().fingerprint()) {
+                if (acknowledgeSet.add(serviceUID)) {
+                    requestSemaphore.release();
+                    int availablePermits = requestSemaphore.availablePermits();
+                    logAppend(String.format("[%016X] ACK %d", serviceUID, availablePermits));
+                }
+            }
+        }
+    }
+
+    private class RequestSender implements Runnable {
+        @Override
+        public void run() {
+            while (socketChannel.isConnected()) {
+                Message requestMessage;
+                try {
+                    // wait for new request
+                    requestMessage = requestQueue.take();
+                } catch (InterruptedException e) {
+                    break;
+                }
+                pendingMessageReference.set(requestMessage);
+                try {
+                    do {
+                        acknowledgeSet.clear();
+                        requestSemaphore.drainPermits();
+                        try {
+                            ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
+                            IntStream.range(0, Integer.BYTES).forEach(
+                                    i -> arrayOutputStream.write(0)
+                            );
+                            ObjectOutputStream outputStream = new ObjectOutputStream(arrayOutputStream);
+                            outputStream.writeObject(requestMessage);
+                            outputStream.close();
+                            ByteBuffer writeByteBuffer = ByteBuffer.wrap(arrayOutputStream.toByteArray());
+                            writeByteBuffer.putInt(0, arrayOutputStream.size() - 4);
+                            socketChannel.write(writeByteBuffer);
+                        } catch (IOException e) {
+                            logAppend(e.getMessage());
+                        }
+                    } while (socketChannel.isConnected() && !requestSemaphore.tryAcquire(MINIMUM_ACK, 1, TimeUnit.SECONDS));
+                    //noinspection CodeBlock2Expr
+                    Platform.runLater(() -> {
+                        txtResult.setText(Float.toString(latestResult));
+                    });
+                } catch (InterruptedException ignored) {
+                    break;
+                }
+            }
+        }
     }
 }

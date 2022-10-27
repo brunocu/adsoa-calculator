@@ -2,10 +2,9 @@ package distributed;
 
 import distributed.message.ContentCode;
 import distributed.message.Message;
+import distributed.message.MessageBuilder;
+import distributed.util.UID;
 
-import javax.script.ScriptEngine;
-import javax.script.ScriptEngineManager;
-import javax.script.ScriptException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -16,24 +15,30 @@ import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
+import java.util.EnumSet;
 import java.util.stream.IntStream;
 
 public class Server {
     private static final char HANDSHAKE_CHAR = 'C';
+    private static final EnumSet<ContentCode> SERVER_CONTENT_CODES = EnumSet.of(
+            ContentCode.ADD,
+            ContentCode.SUB,
+            ContentCode.MUL,
+            ContentCode.DIV
+    );
     private final ByteBuffer handshakeBuffer = ByteBuffer.wrap(new byte[]{(byte) HANDSHAKE_CHAR});
+    private final ByteBuffer responseDataBuffer = ByteBuffer.allocate(Float.BYTES);
     private final int minPort;
-    private final ScriptEngine scriptEngine;
+    private final long uid;
+    private SocketChannel socketChannel = null;
 
     public Server(int minPort) {
         this.minPort = minPort;
-
-        ScriptEngineManager scriptEngineManager = new ScriptEngineManager();
-        scriptEngine = scriptEngineManager.getEngineByName("JavaScript");
-        System.out.println("Engine: " + scriptEngine);
+        uid = UID.generateUID();
     }
 
     public void start() throws IOException {
-        SocketChannel socketChannel = null;
+        System.out.printf("UID: %016X%n", uid);
         for (int porti = minPort; porti < (minPort + 100); porti++) {
             System.out.println("Calling server on " + porti);
             try {
@@ -54,6 +59,7 @@ public class Server {
 
 
         while (socketChannel.isConnected()) {
+            ByteBuffer requestDataBuffer;
             try {
                 // discard header
                 int read = socketChannel.read(ByteBuffer.allocate(Integer.BYTES));
@@ -63,45 +69,81 @@ public class Server {
                     break;
                 }
                 ObjectInputStream objectInputStream = new ObjectInputStream(Channels.newInputStream(socketChannel));
-                final Message message = (Message) objectInputStream.readObject();
-                // process only ContentCode.OPERATION
-                if (message.getContentCode() != ContentCode.OPERATION)
+                final Message requestMessage = (Message) objectInputStream.readObject();
+                // process only operations
+                ContentCode requestContentCode = requestMessage.contentCode();
+                if (!SERVER_CONTENT_CODES.contains(requestContentCode))
                     continue;
-                String messageBody = message.getBody();
-                System.out.println("Message: " + messageBody);
+                // send ACK
+                ContentCode ackCode = ContentCode.valueOf("ACK_" + requestMessage.contentCode().name());
+                Message ackMessage = MessageBuilder.from(requestMessage)
+                                                   .contentCode(ackCode)
+                                                   .serviceUID(uid)
+                                                   .body(null)
+                                                   .build();
+                sendMessage(ackMessage);
 
-                String responseBody;
+                requestDataBuffer = ByteBuffer.wrap(requestMessage.body());
+                float aVal = requestDataBuffer.getFloat();
+                float bVal = requestDataBuffer.getFloat();
+
+                float responseVal;
                 // do stuff
-                try {
-                    responseBody = scriptEngine.eval(messageBody).toString();
-                } catch (ScriptException e) {
-                    responseBody = "EXPR ERR";
+                switch (requestContentCode) {
+                    case ADD -> {
+                        System.out.printf("Request: %f+%f%n", aVal, bVal);
+                        responseVal = aVal + bVal;
+                    }
+                    case SUB -> {
+                        System.out.printf("Request: %f-%f%n", aVal, bVal);
+                        responseVal = aVal - bVal;
+                    }
+                    case MUL -> {
+                        System.out.printf("Request: %f*%f%n", aVal, bVal);
+                        responseVal = aVal * bVal;
+                    }
+                    case DIV -> {
+                        System.out.printf("Request: %f/%f%n", aVal, bVal);
+                        responseVal = aVal / bVal;
+                    }
+                    default -> throw new IllegalStateException("Unexpected value: " + requestContentCode);
                 }
+                System.out.println("Response: " + responseVal);
 
                 // return message
-                System.out.println("Response: " + responseBody);
-                Message response = new Message(ContentCode.RESPONSE, responseBody);
-                // Prepare array buffer
-                ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
-                // leave space for size Int at beginning of array
-                IntStream.range(0, Integer.BYTES).forEach(i ->
-                        arrayOutputStream.write(0)
-                );
-                ObjectOutputStream outputStream = new ObjectOutputStream(arrayOutputStream);
-                outputStream.writeObject(response);
-                outputStream.close();
-                final ByteBuffer writeByteBuffer = ByteBuffer.wrap(arrayOutputStream.toByteArray());
-                writeByteBuffer.putInt(0, arrayOutputStream.size() - 4);
-                socketChannel.write(writeByteBuffer);
+                responseDataBuffer.putFloat(responseVal);
+                Message responseMessage = MessageBuilder.from(requestMessage)
+                                                        .contentCode(ContentCode.RES)
+                                                        .serviceUID(uid)
+                                                        .body(responseDataBuffer.array())
+                                                        .build();
+                sendMessage(responseMessage);
             } catch (SocketException e) {
                 // connection closed from server
                 System.out.println("\nServer closed connection!");
                 break;
             } catch (IOException | ClassNotFoundException e) {
                 e.printStackTrace();
+            } finally {
+                responseDataBuffer.clear();
             }
         }
         socketChannel.close();
+    }
+
+    private void sendMessage(Message message) throws IOException {
+        // Prepare array buffer
+        ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
+        // leave space for size Int at beginning of array
+        IntStream.range(0, Integer.BYTES).forEach(i ->
+                arrayOutputStream.write(0)
+        );
+        ObjectOutputStream outputStream = new ObjectOutputStream(arrayOutputStream);
+        outputStream.writeObject(message);
+        outputStream.close();
+        ByteBuffer writeByteBuffer = ByteBuffer.wrap(arrayOutputStream.toByteArray());
+        writeByteBuffer.putInt(0, arrayOutputStream.size() - 4);
+        socketChannel.write(writeByteBuffer);
     }
 
     public static void main(String[] args) throws IOException {

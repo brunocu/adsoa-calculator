@@ -1,9 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="cli-client" type="JarApplication" singleton="false">
-    <option name="JAR_PATH" value="$PROJECT_DIR$/cli-client/build/libs/cli-client-uber.jar" />
-    <option name="ALTERNATIVE_JRE_PATH" />
-    <method v="2">
-      <option name="Gradle.BeforeRunTask" enabled="true" tasks="shadowJar" externalProjectPath="$PROJECT_DIR$/cli-client" vmOptions="" scriptParameters="" />
-    </method>
-  </configuration>
-</component>

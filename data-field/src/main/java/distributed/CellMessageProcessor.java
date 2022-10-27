@@ -43,7 +43,7 @@ public class CellMessageProcessor implements Runnable {
                         } catch (SocketException e) {
                             socketChannel.close();
                             keyIterator.remove();
-                            System.out.println("[" + remotePort + "] Client connection closed");
+                            System.out.println("[" + remotePort + "] Cell connection closed");
                             continue;
                         }
                         lengthByteBuffer.flip();
@@ -52,7 +52,7 @@ public class CellMessageProcessor implements Runnable {
                         readByteBuffer.put(lengthByteBuffer.array());
                         socketChannel.read(readByteBuffer);
                         //noinspection UnnecessaryToStringCall
-                        System.out.println("[" + remotePort + "] Client message: " + readByteBuffer.toString());
+                        System.out.println("[" + remotePort + "] Cell message: " + readByteBuffer.toString());
                         // broadcast data to all open channels
                         readByteBuffer.flip();
                         // Cells
