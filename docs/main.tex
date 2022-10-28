@@ -15,7 +15,7 @@
 
 
 % Information for title page
-\title{Middleware para sistemas distribuidos}
+\title{Arquitectura Autónoma Descentralizada Orientada a Servicios para sistemas críticos}
 \author{\IEEEauthorblockN{Bruno Campos Uribe}
 \IEEEauthorblockA{0223329@up.edu.mx}}
 
@@ -25,7 +25,7 @@
 \maketitle
 
 \begin{abstract}
-    Un sistema distribuido es una colección elementos de computación autónomos que aparecen al usuario como un único sistema coherente. Esto se logra con la colaboración de estos elementos que se comunican entre ellos. El Middleware Orientado a Mensajes es un mecanismo basado en comunicación asíncrona diseñado para cumplir las necesidades de un sistema distribuido de alto rendimiento. Un cliente del sistema se puede conectar a uno o varios servidores que actúan como intermediarios para el envío y recepción de mensajes a otros clientes del sistema. Se realizó una calculadora distribuida basada en esta arquitectura.
+    Un sistema distribuido es una colección elementos de computación autónomos que aparecen al usuario como un único sistema coherente. Esto se logra con la colaboración de estos elementos que se comunican entre ellos. Arquitectura Autónoma Descentralizada Orientada a Servicios es un mecanismo basado en comunicación asíncrona diseñado para cumplir las necesidades de un sistema distribuido de alto rendimiento. Un cliente del sistema se puede conectar a uno o varios servidores que actúan como intermediarios para el envío y recepción de mensajes a otros clientes del sistema. Se realizó una calculadora distribuida basada en esta arquitectura.
 \end{abstract}
 
 \section{Introducción}
@@ -96,7 +96,7 @@ En el modelo más sencillo de cliente-servidor, los procesos de un sistema distr
 
 En esta arquitectura, el servidor se encarga de todo, mientras que el cliente no es más que un terminal mudo. Este es el modelo más sencillo de una \emph{arquitectura por capas}. Un enfoque para organizar los clientes y los servidores consiste en distribuir más de dos capas capas en diferentes máquinas. Sin embargo, se sigue haciendo una distinción entre sólo dos tipos de máquinas: las máquinas cliente y las máquinas servidoras, lo que conduce a lo que también se denomina una arquitectura (físicamente) de dos niveles\cite{steen_tanenbaum_2017}.
 
-\begin{figure}[hb]
+\begin{figure}[htb]
     \centering
     \includegraphics[width=0.35\columnwidth]{client-server.png}
     \caption{Interacción cliente-servidor.}
@@ -119,7 +119,7 @@ El modelo de comunicación síncrona también se ilustra en la Figura \ref{fig:c
 
 El modelo de interacción asíncrona, ilustrado en la Figura \ref{fig:async}, permite a quien llama mantener el control del procesamiento. El programaque llama no necesita bloquearse y esperar a que el código llamado responda. Este modelo permite al elemento que llama continuar el procesamiento independientemente del estado de procesamiento del procedimiento llamado. Con la interacción asíncrona, el procedimiento llamado puede no ejecutarse inmediatamente. Este modelo de interacción requiere un intermediario para gestionar el intercambio de peticiones \cite{curry_2004}.
 
-\begin{figure}[hb]
+\begin{figure}[htb]
     \centering
     \includegraphics[width=\columnwidth]{async.png}
     \caption{Modelo de interacción asíncrono \cite[][Figura 1.2]{curry_2004}.}
@@ -153,7 +153,18 @@ Con MOM, la pérdida de mensajes por fallos de la red o del sistema se evita uti
 
 Además de desacoplar la interacción de los subsistemas, MOM también desvincula las características de rendimiento de los subsistemas entre sí. Los subsistemas pueden ampliarse de forma independiente, con poca o ninguna alteración de otros subsistemas. MOM también permite al sistema hacer frente a picos de actividad en un subsistema sin afectar a otras áreas del sistema. Los modelos MOM permiten balanceo de carga, al permitir que un subsistema elija aceptar un mensaje cuando esté preparado para hacerlo\cite{curry_2004}.
 
-\section{Implementación}
+\subsection{Autonomous Descentralized Service Oriented Architecture}
+
+La \emph{Arquitectura Autónoma Descentralizada Orientada a Servicios} (ADSOA) es una arquitectura que combina los conceptos de los \emph{Sistemas Autónomos Descentralizados}(ADS) y la \emph{Arquitectura Orientada a Servicios}(SOA). ADS fue propuesto para diseñar sistemas críticos de alta fiabilidad, expansibles y tolerante a fallos. Los sistemas en ADS están compuestos por subsistemas y entidades auto-administrados y auto-coordenados. Sin embargo, la implementación de un ADS suele requerir hardware y software especializado. Por lo tanto, ADSOA propone un modelo basado en ADS, utilizando conceptos de SOA para evitar el uso de hardware especializado.\cite{leguizamo_2017}
+
+La arquitectura ADS está conformada por los siguientes componentes\cite{leguizamo_2017}:
+\begin{description}
+    \item[Entidad.] Un elemento que es una parte autónoma de la aplicación.
+    \item[Canal de Datos.] Es el intermediario entre las entidades de la aplicación para el intercambio de mensajes.
+    \item[Codigo de Contenido.] Es parte del protocolo de comunicación entre entidades. Cuando una entidad envía un mensaje, adjuntan un Código de Contenido. Las entidades conectadas aceptarán o descartarán el mensaje según los Códigos de Contenidos a los que estén registrados.
+\end{description}
+
+\section{Solución}
 
 \begin{figure}[hbt]
     \centering
@@ -162,44 +173,93 @@ Además de desacoplar la interacción de los subsistemas, MOM también desvincul
     \label{fig:components}
 \end{figure}
 
-Se desarolló una calculadora utilizando una arquitectura MOM. Para implementar esta arquitectura se desarrollaron los siguientes compontentes, que se ilustran en la Figura \ref{fig:components}, que se describiran a detalle más adelante.
+Se desarolló una calculadora utilizando una arquitectura ADSOA. Para implementar esta arquitectura se desarrollaron los siguientes compontentes, que se ilustran en la Figura \ref{fig:components}, que se describiran a detalle más adelante.
 
 \begin{description}
-    \item[Mensaje.] Encapsula el mensaje para enviar al Nodo. Incluye un encabezado con un código de contenido, que describe el contenido del mensaje.
-    \item[Nodo.] El Nodo es el canal de mensaje que actúa como intermediario entre las células.
-    \item[Célula.] En el contexto de la arquitectura MOM, una célula puede ser cualquier aplicación que se conectará al Nodo para comunicarse con las otras células conectadas. Los distintos tipos de célula distingue qué mensajes procesar o rechazar basado en su código de contenido.
+    \item[Mensaje.] Encapsula el mensaje para enviar al Nodo. La estructura del mensaje incluye campos que lo identifican de manera única y permiten el filtrado por parte de las células. Los campos se detallan en la Sección \ref{sec:msg}
+    \item[Nodo.] El Nodo es el elemento del canal datos que actúa como intermediario entre las células. Un Nodo mantiene una conexión a todos los demás nodos en la red, y se asegura de que un mensaje se propague a todas las Células.
+    \item[Célula.] En el contexto de la arquitectura, una célula puede ser cualquier aplicación que se conectará al canal de datos para comunicarse con las otras células conectadas. Los distintos tipos de célula distinguen qué mensajes procesar o rechazar basado en su código de contenido.
     
     Para la calculadora se desarrollaron los siguientes tipos de célula:
     \begin{description}
-        \item[Interfaz de Usuario.] Una interfaz gráfica que permite al usuario introducir operaciones y ver los resultados. También mantiene un registro de texto de todos los mensajes que salen y entran. La interfaz se muestra en la Figura \ref{fig:demo}.
-        \item[Servidor.] Reciben las operaciones de usuario, las evalúan, y envían el resultado.
+        \item[Interfaz de Usuario.] Una interfaz gráfica que permite al usuario introducir operaciones y ver los resultados. También mantiene un registro de texto de todos los mensajes que salen y entran. La interfaz gráfica se muestra en la Figura \ref{fig:demo}.
+        \item[Servidor.] El servidor es un manejador de servicios SOA. Recibe una operación de usuario, carga de manera dinámica la clase para evaluar la operación y envía el resultado.
     \end{description}
 \end{description}
 
-\subsection{Mensaje}
+\subsection{Mensaje}\label{sec:msg}
 
-El mensaje se implementa como una clase de Java con dos campos: un campo de texto, que es el contenido del mensaje; y el código de contenido. Se serializan utilizando la interfaz \texttt{java.io.Serializable} para poder ser enviados como un buffer de bytes por una conexión TCP/IP.
+El mensaje se encapsula en un registro inmutable con los siguientes campos, que también se muestran en la Figura \ref{fig:message}:
+\begin{description}
+    \item[contentCode] Código de Contenido. Los posibles códigos de contenido se describen en la Tabla \ref{tab:cc}.
+    \item[requestUID] El identificador único de la célula que solicita la operación.
+    \item[serviceUID] El identificador único de la célula que devuelve el resultado. Este campo sólo se usa cuando el código de contenido es \texttt{RES} o \texttt{ACK}, de lo contrario es nulo.
+    \item[fingerprint] La clave única de evento. La clave se obtiene de los primeros 4 bits generados por un hash SHA-1 de la representación en bytes del código de contenido, el identificador del cliente, el contenido del mensaje y el índice de solicitud.
+    \item[body] Un arreglo de bytes con el contenido del mensaje. Puede ser nulo.
+\end{description}
 
-En esta etapa del proyecto sólo se definen dos códigos de contenido: \texttt{OPERATION} y \texttt{RESPONSE}, pero la clase se diseño de manera que sea fácil expandir el número de códigos.
+El mensaje se serializa utilizando la interfaz \texttt{java.io.Serializable} para transmitirlo como un stream de bytes.
 
 \begin{figure}[hbt]
     \centering
-    \includegraphics[width=0.5\columnwidth]{message.png}
+    \includegraphics[width=0.9\columnwidth]{message.png}
     \caption{Diagrama de clase del Mensaje.}
     \label{fig:message}
 \end{figure}
 
+\begin{table}[hb]
+    \centering
+    \caption{Códigos de Contenido.}
+    \label{tab:cc}
+    \begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{ContentCode} & \textbf{Descripción}              & \textbf{Receptor} \\ \hline
+    \texttt{ADD}         & Operación de suma.                & Servidor          \\ \hline
+    \texttt{SUB}         & Operación de resta.               & Servidor          \\ \hline
+    \texttt{MUL}         & Operación de multiplicación.      & Servidor          \\ \hline
+    \texttt{DIV}         & Operación de división.            & Servidor          \\ \hline
+    \texttt{ACK\_ADD}    & Acuse de suma recibida.           & Interfaz          \\ \hline
+    \texttt{ACK\_SUB}    & Acuse de resta recibida.          & Interfaz          \\ \hline
+    \texttt{ACK\_MUL}    & Acuse de multiplicación recibida. & Interfaz          \\ \hline
+    \texttt{ACK\_DIV}    & Acuse de división recibida.       & Interfaz          \\ \hline
+    \texttt{RES}         & Resultado.                        & Interfaz          \\ \hline
+    \end{tabular}
+\end{table}
+
 \subsection{Nodo}
 
-Cuando se executa el Nodo, inicia un socket TCP de servidor en un puerto proporcionado por el usuario, o el puerto \texttt{50000} por defecto. El Nodo se compone de dos hilos concurrentes: en uno se mantiene abierto el socket de servidor y las nuevas conecciones se registran en un Selector. Los sockets que se registran al selector se configuran para notificar un evento de escucha--cuando hay un mensaje pendiente por recibir-- El segundo hilo espera para un evento del Selector y procesa los mensajes entrantes; el Nodo propaga los mensajes a todas las conexiones abiertas, a excepción de la que recibió el mensaje.
+Cuando se ejecuta el Nodo, escanea un rango de puertos proporcionados por el usuario (\texttt{50000-50100} por defecto) para iniciar un socket TCP de servidor. Después de vincular correctamente el puerto de servidor, vuelve a escanear el mismo rango de puertos para buscar otros Nodos existentes e intenta establecer una conexión para integrarse a la red interconectada del canal de datos.
+
+El nodo inicia un hilo para procesar solicitudes de conexión. Cuando se registra una nueva conexión, espera que el remoto envíe un código de identificación para identificar la nueva conexión como una Célula u otro Nodo, y se registra en el Selector correspondiente para notificar un evento de escucha -- cuando hay un mensaje pendiente por recibir. Si el remoto envía un código de identificación no válido, o no envía el código de identificación en una ventana de 1 segundo, el Nodo termina la conexión.
+
+Dos hilos concurrentes procesan los mensajes de los selectores. Si el Selector de Células recibe un mensaje, el mensaje se propaga a todas las conexiones, a excepción de la que recibió el mensaje; si el Selector de Nodos recibe un mensaje, el mensaje se propaga sólo a las Células conectadas directamente al Nodo, ya que se asume que otro Nodo está propagando el mensaje en el canal de datos.
 
 El nodo se implementó con la librería de comunicación asíncrona de Java \texttt{java.nio} \cite{java17NIO}.
 
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.3\columnwidth]{protocol.png}
+    \caption{Protocolo de identificación.}
+    \label{fig:protocol}
+\end{figure}
+
+\begin{table}[hb]
+    \centering
+    \caption{Códigos de Identificación.}
+    \label{tab:handshake}
+    \begin{tabular}{|c|l|}
+    \hline
+    \textbf{Código} & \textbf{Conexión} \\ \hline
+    \texttt{'C'}    & Célula \\ \hline
+    \texttt{'N'}    & Nodo \\ \hline
+    \end{tabular}
+\end{table}
+
 \subsection{Células}
 
-Cuando se executa una célula (Interfaz o Servidor), se intenta establecer una conexión TCP al Nodo a través del puerto proporcionado por el usuario, o el puerto \texttt{50000} por defecto.
+Cuando se executa una célula (Interfaz o Servidor), se intenta establecer una conexión TCP al primer Nodo disponible en un rango de puertos proporcionados por el usuario (\texttt{50000-50100} por defecto).
 
-Cuando una célula recibe un mensaje del Nodo, puede decidir procesarlo o rechazarlo leyendo su código de contenido. La \emph{Interfaz de Usuario} envía mensajes con código de contenido \texttt{OPERATION} y muestra al usuario los mensajes con código de contenido \texttt{RESPONSE}. El \emph{Servidor} sólo procesa mensajes con código de contenido \texttt{OPERATION} y encapsula sus respuestas con código de contenido \texttt{RESPONSE}.
+Cuando una célula recibe un mensaje del Nodo, puede decidir procesarlo o rechazarlo leyendo su código de contenido de acuerdo a la Tabla \ref{tab:cc}.
 
 \begin{figure}[hbt]
     \centering
@@ -208,13 +268,18 @@ Cuando una célula recibe un mensaje del Nodo, puede decidir procesarlo o rechaz
     \label{fig:demo}
 \end{figure}
 
-\section{Conclusión}
+\subsubsection{Interfaz de Usuario}
 
-Para expandir este modelo basado en mensajes a una arquitectura ADSOA, el siguiente paso en el desarrollo es distribuir lo que ahora es la célula de \emph{Servidor} con una arquitectura orientada a servicios (SOA). Esto involucra generar más códigos de contenido para que el sistema pueda distribuir las distinas operaciones.
+Cuando el usuario inicia una operación, esta se enfila en una cola de procesamiento. Un hilo del programa monitorea el primer mensaje en fila y espera a recibir mensajes de acuse de un servidor. Para enviar la siguiente operación en cola, el programa debe recibir una cantidad determinada de acuses en un tiempo determinado (3 acuses en 1 segundo por defecto).
 
-Para implementar transparencia de réplica, los mensajes deberán ser filtrados de tal manera que el usuario sólo vea una respuesta, sin perder la confiabilidad de un sistema distribuido.
+Cuando una interfaz recibe un mensaje de un nodo, primero verifica que la huella de solicitante coincida con su propia huella, de lo contrario descarta el mensaje.
+Si el mensaje contiene un resultado, sólo lo mostrará al usuario si el mensaje con la misma clave ya tiene el número mínimo de acuses.
 
-\newpage
+\section{Conclusiones}
+
+La arquitectura ADSOA está diseñada para sistemas críticos donde el fallo de una entidad se considera una parte normal del sistema. ADSOA resuelve esto con un sistema redundante y auto-coordinado, que responda de manera dinámica al estado de todo el sistema.
+
+%\newpage
 \printbibliography
 
 \end{document}

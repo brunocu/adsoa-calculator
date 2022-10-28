@@ -1,18 +1,31 @@
 @startuml message
 'class diagram
-' top to bottom direction
+left to right direction
 skinparam linetype ortho
 
 enum ContentCode {
-  OPERATION
-  RESPONSE
+  ADD
+  SUB
+  MUL
+  DIV
+  ACK_ADD
+  ACK_SUB
+  ACK_MUL
+  ACK_DIV
+  RES
 }
 hide ContentCode methods
-class Message <<Immutable>> {
-  - body: String
+class Message <<Serializable Record>> {
   - contentCode: ContentCode
-  + getContentCode(): ContentCode
-  + getBody(): String
+  - requestUID: Long
+  - serviceUID: Long
+  - fingerprint: Long
+  - body: byte[]
+  + contentCode(): ContentCode
+  + requestUID(): Long
+  + serviceUID(): Long
+  + fingerprint(): Long
+  + body(): byte[]
 }
 
 Message     "1" *-- "1" ContentCode

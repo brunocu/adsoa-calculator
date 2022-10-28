@@ -1,0 +1,14 @@
+@startuml protocol
+' Sequence Diagram
+participant Cell
+participant Node
+
+Cell -> Node: open
+Node --> Cell: accept
+Cell -> Node: identify
+
+== ==
+
+Cell <-> Node: data
+
+@enduml
