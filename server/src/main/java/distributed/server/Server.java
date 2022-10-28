@@ -1,4 +1,4 @@
-package distributed;
+package distributed.server;
 
 import distributed.message.ContentCode;
 import distributed.message.Message;
@@ -9,9 +9,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
+import java.net.MalformedURLException;
 import java.net.SocketException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
@@ -38,7 +43,9 @@ public class Server {
     }
 
     public void start() throws IOException {
+        System.out.println(System.getProperty("user.dir"));
         System.out.printf("UID: %016X%n", uid);
+
         for (int porti = minPort; porti < (minPort + 100); porti++) {
             System.out.println("Calling server on " + porti);
             try {
@@ -87,27 +94,28 @@ public class Server {
                 float aVal = requestDataBuffer.getFloat();
                 float bVal = requestDataBuffer.getFloat();
 
-                float responseVal;
+                Method evalMethod;
                 // do stuff
                 switch (requestContentCode) {
                     case ADD -> {
                         System.out.printf("Request: %f+%f%n", aVal, bVal);
-                        responseVal = aVal + bVal;
+                        evalMethod = loadEvalMethod("AddService");
                     }
                     case SUB -> {
                         System.out.printf("Request: %f-%f%n", aVal, bVal);
-                        responseVal = aVal - bVal;
+                        evalMethod = loadEvalMethod("SubService");
                     }
                     case MUL -> {
                         System.out.printf("Request: %f*%f%n", aVal, bVal);
-                        responseVal = aVal * bVal;
+                        evalMethod = loadEvalMethod("MulService");
                     }
                     case DIV -> {
                         System.out.printf("Request: %f/%f%n", aVal, bVal);
-                        responseVal = aVal / bVal;
+                        evalMethod = loadEvalMethod("DivService");
                     }
                     default -> throw new IllegalStateException("Unexpected value: " + requestContentCode);
                 }
+                float responseVal = (float) evalMethod.invoke(null, aVal, bVal);
                 System.out.println("Response: " + responseVal);
 
                 // return message
@@ -122,13 +130,25 @@ public class Server {
                 // connection closed from server
                 System.out.println("\nServer closed connection!");
                 break;
-            } catch (IOException | ClassNotFoundException e) {
+            } catch (IOException | ClassNotFoundException | IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
             } finally {
                 responseDataBuffer.clear();
             }
         }
         socketChannel.close();
+    }
+
+    private static Method loadEvalMethod(String service) {
+        try {
+            URL url = new URL(new URL("file: "), "./build/classes/");
+            URLClassLoader classLoader = URLClassLoader.newInstance(new URL[]{url});
+            Class<?> clazz = classLoader.loadClass("distributed.server." + service);
+            Class<?>[] partypes = new Class[]{float.class, float.class};
+            return clazz.getMethod("eval", partypes);
+        } catch (ClassNotFoundException | NoSuchMethodException | MalformedURLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void sendMessage(Message message) throws IOException {

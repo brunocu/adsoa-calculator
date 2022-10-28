@@ -43,7 +43,7 @@ public class FXMLController {
     private long uid;
     private SocketChannel socketChannel = null;
     private int requestNumber = 0;
-    private Float latestResult = null;
+    private boolean ackResult = false;
     private final AtomicReference<Message> pendingMessageReference = new AtomicReference<>();
     private final BlockingQueue<Message> requestQueue = new LinkedBlockingQueue<>();
     private final ConcurrentSkipListSet<Long> acknowledgeSet = new ConcurrentSkipListSet<>();
@@ -261,7 +261,10 @@ public class FXMLController {
         private void processResult(byte[] messageBody, long serviceUID) {
             float messageResult = ByteBuffer.wrap(messageBody).getFloat();
             logAppend(String.format("[%016X] Result: %f", serviceUID, messageResult));
-            latestResult = messageResult;
+            if (ackResult)
+                Platform.runLater(() -> {
+                    txtResult.setText(Float.toString(messageResult));
+                });
         }
 
         private void processAcknowledge(long messageHash, long serviceUID) {
@@ -289,6 +292,7 @@ public class FXMLController {
                 pendingMessageReference.set(requestMessage);
                 try {
                     do {
+                        ackResult = false;
                         acknowledgeSet.clear();
                         requestSemaphore.drainPermits();
                         try {
@@ -306,10 +310,7 @@ public class FXMLController {
                             logAppend(e.getMessage());
                         }
                     } while (socketChannel.isConnected() && !requestSemaphore.tryAcquire(MINIMUM_ACK, 1, TimeUnit.SECONDS));
-                    //noinspection CodeBlock2Expr
-                    Platform.runLater(() -> {
-                        txtResult.setText(Float.toString(latestResult));
-                    });
+                    ackResult = true;
                 } catch (InterruptedException ignored) {
                     break;
                 }
