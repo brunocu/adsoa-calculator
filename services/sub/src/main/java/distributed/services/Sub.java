@@ -1,6 +1,7 @@
-package distributed.server;
+package distributed.services;
 
-public class SubService {
+@SuppressWarnings("unused")
+public class Sub {
     public static float eval(float aVal, float bVal) {
         return (aVal - bVal);
     }

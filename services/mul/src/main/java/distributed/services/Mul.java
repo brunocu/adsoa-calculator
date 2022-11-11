@@ -1,6 +1,7 @@
-package distributed.server;
+package distributed.services;
 
-public class MulService {
+@SuppressWarnings("unused")
+public class Mul {
     public static float eval(float aVal, float bVal) {
         return (aVal * bVal);
     }

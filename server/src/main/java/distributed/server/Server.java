@@ -20,6 +20,7 @@ import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
+import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.stream.IntStream;
 
@@ -31,23 +32,25 @@ public class Server {
             ContentCode.MUL,
             ContentCode.DIV
     );
+    private final String servicesDir;
     private final ByteBuffer handshakeBuffer = ByteBuffer.wrap(new byte[]{(byte) HANDSHAKE_CHAR});
     private final ByteBuffer responseDataBuffer = ByteBuffer.allocate(Float.BYTES);
     private final int minPort;
     private final long uid;
     private SocketChannel socketChannel = null;
 
-    public Server(int minPort) {
+    public Server(int minPort, String servicesDir) {
         this.minPort = minPort;
+        this.servicesDir = servicesDir;
         uid = UID.generateUID();
     }
 
     public void start() throws IOException {
-        System.out.println(System.getProperty("user.dir"));
         System.out.printf("UID: %016X%n", uid);
+        System.out.println("Services directory: " + Path.of(servicesDir).toAbsolutePath());
 
+        System.out.printf("Connecting to Data Field on range: %d\u2013%d%n", minPort, (minPort + 100));
         for (int porti = minPort; porti < (minPort + 100); porti++) {
-            System.out.println("Calling server on " + porti);
             try {
                 socketChannel = SocketChannel.open(new InetSocketAddress(porti));
                 socketChannel.write(handshakeBuffer);
@@ -67,6 +70,7 @@ public class Server {
 
         while (socketChannel.isConnected()) {
             ByteBuffer requestDataBuffer;
+            String requestContentCodeName = null;
             try {
                 // discard header
                 int read = socketChannel.read(ByteBuffer.allocate(Integer.BYTES));
@@ -81,42 +85,23 @@ public class Server {
                 ContentCode requestContentCode = requestMessage.contentCode();
                 if (!SERVER_CONTENT_CODES.contains(requestContentCode))
                     continue;
-                // send ACK
-                ContentCode ackCode = ContentCode.valueOf("ACK_" + requestMessage.contentCode().name());
+                requestContentCodeName = requestContentCode.name();
+
+                requestDataBuffer = ByteBuffer.wrap(requestMessage.body());
+                float aVal = requestDataBuffer.getFloat();
+                float bVal = requestDataBuffer.getFloat();
+                System.out.printf("Request:%s,%.2f,%.2f%n", requestContentCodeName, aVal, bVal);
+
+                Method evalMethod = loadEvalMethod(requestContentCodeName);
+                ContentCode ackCode = ContentCode.valueOf("ACK_" + requestContentCodeName);
                 Message ackMessage = MessageBuilder.from(requestMessage)
                                                    .contentCode(ackCode)
                                                    .serviceUID(uid)
                                                    .body(null)
                                                    .build();
                 sendMessage(ackMessage);
-
-                requestDataBuffer = ByteBuffer.wrap(requestMessage.body());
-                float aVal = requestDataBuffer.getFloat();
-                float bVal = requestDataBuffer.getFloat();
-
-                Method evalMethod;
-                // do stuff
-                switch (requestContentCode) {
-                    case ADD -> {
-                        System.out.printf("Request: %f+%f%n", aVal, bVal);
-                        evalMethod = loadEvalMethod("AddService");
-                    }
-                    case SUB -> {
-                        System.out.printf("Request: %f-%f%n", aVal, bVal);
-                        evalMethod = loadEvalMethod("SubService");
-                    }
-                    case MUL -> {
-                        System.out.printf("Request: %f*%f%n", aVal, bVal);
-                        evalMethod = loadEvalMethod("MulService");
-                    }
-                    case DIV -> {
-                        System.out.printf("Request: %f/%f%n", aVal, bVal);
-                        evalMethod = loadEvalMethod("DivService");
-                    }
-                    default -> throw new IllegalStateException("Unexpected value: " + requestContentCode);
-                }
                 float responseVal = (float) evalMethod.invoke(null, aVal, bVal);
-                System.out.println("Response: " + responseVal);
+                System.out.println("Result: " + responseVal);
 
                 // return message
                 responseDataBuffer.putFloat(responseVal);
@@ -130,8 +115,10 @@ public class Server {
                 // connection closed from server
                 System.out.println("\nServer closed connection!");
                 break;
-            } catch (IOException | ClassNotFoundException | IllegalAccessException | InvocationTargetException e) {
+            } catch (IOException | IllegalAccessException | InvocationTargetException e) {
                 e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                System.out.printf("Unknown service: %s%n", requestContentCodeName);
             } finally {
                 responseDataBuffer.clear();
             }
@@ -139,16 +126,23 @@ public class Server {
         socketChannel.close();
     }
 
-    private static Method loadEvalMethod(String service) {
+    private Method loadEvalMethod(String service) throws ClassNotFoundException, IOException {
+        URLClassLoader classLoader = null;
+        Method evalMethod;
         try {
-            URL url = new URL(new URL("file: "), "./build/classes/");
-            URLClassLoader classLoader = URLClassLoader.newInstance(new URL[]{url});
-            Class<?> clazz = classLoader.loadClass("distributed.server." + service);
+            URL url = Path.of(servicesDir, (service.toLowerCase() + ".jar")).toUri().toURL();
+            classLoader = URLClassLoader.newInstance(new URL[]{url});
+            String serviceClassName = "distributed.services." + service.substring(0, 1).toUpperCase() + service.substring(1).toLowerCase();
+            Class<?> clazz = classLoader.loadClass(serviceClassName);
             Class<?>[] partypes = new Class[]{float.class, float.class};
-            return clazz.getMethod("eval", partypes);
-        } catch (ClassNotFoundException | NoSuchMethodException | MalformedURLException e) {
+            evalMethod = clazz.getMethod("eval", partypes);
+        } catch (NoSuchMethodException | MalformedURLException e) {
             throw new RuntimeException(e);
+        } finally {
+            if (classLoader != null)
+                classLoader.close();
         }
+        return evalMethod;
     }
 
     private void sendMessage(Message message) throws IOException {
@@ -167,8 +161,6 @@ public class Server {
     }
 
     public static void main(String[] args) throws IOException {
-        System.setProperty("polyglot.engine.WarnInterpreterOnly", "false");
-
         int port = 50000; // default port
         if (args.length > 0) {
             try {
@@ -178,7 +170,7 @@ public class Server {
             }
         }
 
-        Server server = new Server(port);
+        Server server = new Server(port, "server/build/libs/services");
         server.start();
     }
 }

@@ -1,6 +1,7 @@
-package distributed.server;
+package distributed.services;
 
-public class AddService {
+@SuppressWarnings("unused")
+public class Add {
     public static float eval(float aVal, float bVal) {
         return (aVal + bVal);
     }
