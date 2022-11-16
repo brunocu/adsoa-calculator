@@ -10,20 +10,20 @@ import javafx.stage.Stage;
 public class ClientApplication extends Application {
 
     @Override
-    public void start(Stage stage) throws Exception {
+    public void start(Stage primaryStage) throws Exception {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("scene.fxml"));
         Parent root = loader.load();
         FXMLController controller = loader.getController();
 
         Scene scene = new Scene(root);
 
-        stage.setTitle("Calculadora");
-        stage.setScene(scene);
-        stage.setOnHidden(e -> {
+        primaryStage.setTitle("Calculadora");
+        primaryStage.setScene(scene);
+        primaryStage.setOnHidden(e -> {
             controller.shutdown();
             Platform.exit();
         });
-        stage.show();
+        primaryStage.show();
     }
 
     public static void main(String[] args) {

@@ -7,6 +7,9 @@ import distributed.util.UID;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.RadioButton;
@@ -14,6 +17,8 @@ import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
 import javafx.scene.control.TextFormatter;
 import javafx.scene.control.ToggleGroup;
+import javafx.stage.Modality;
+import javafx.stage.Stage;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -37,7 +42,14 @@ import java.util.stream.IntStream;
 
 public class FXMLController {
     private static final char HANDSHAKE_CHAR = 'C';
-    private static final int MINIMUM_ACK = 3;
+    private static final int MINIMUM_ACK = 1;
+    private static final UnaryOperator<TextFormatter.Change> FLOAT_FILTER = change -> {
+        String newText = change.getControlNewText();
+        if (newText.matches("[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)")) {
+            return change;
+        }
+        return null;
+    };
     private final ByteBuffer handshakeBuffer = ByteBuffer.wrap(new byte[]{(byte) HANDSHAKE_CHAR});
     private final ByteBuffer messageDataBuffer = ByteBuffer.allocate(2 * Float.BYTES);
     private long uid;
@@ -66,17 +78,11 @@ public class FXMLController {
     @FXML
     private RadioButton selRVal;
     //</editor-fold>
-    private static final UnaryOperator<TextFormatter.Change> FLOAT_FILTER = change -> {
-        String newText = change.getControlNewText();
-        if (newText.matches("[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)")) {
-            return change;
-        }
-        return null;
-    };
     private Thread requestThread;
     private Thread responseThread;
 
     public void initialize() {
+        // FX setup
         txtLVal.setTextFormatter(
                 new TextFormatter<Float>(FLOAT_FILTER));
 
@@ -209,6 +215,20 @@ public class FXMLController {
         int lenLimit = !resultText.startsWith("-") ? 1 : 2;
         if (resultText.length() > lenLimit) valTextField.setText(resultText.substring(0, resultText.length() - 1));
         else valTextField.setText("0");
+    }
+
+    @FXML
+    private void openConfig(ActionEvent event) throws IOException {
+        Node node = (Node) event.getSource();
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("config.fxml"));
+        Scene scene = new Scene(loader.load());
+
+        Stage stage = new Stage();
+        stage.initOwner(node.getScene().getWindow());
+        stage.initModality(Modality.WINDOW_MODAL);
+        stage.setTitle("Config");
+        stage.setScene(scene);
+        stage.showAndWait();
     }
 
     private class ResponseListener implements Runnable {

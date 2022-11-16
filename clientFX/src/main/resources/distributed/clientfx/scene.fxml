@@ -96,7 +96,15 @@
             </children>
          </HBox>
          <TextArea fx:id="txtLog" editable="false" prefWidth="240.0" VBox.vgrow="ALWAYS" />
-         <Label fx:id="labelUID" text="Label" />
+         <HBox alignment="CENTER_RIGHT" spacing="4.0">
+            <children>
+               <Label fx:id="labelUID" text="Label" />
+               <Button mnemonicParsing="false" onAction="#openConfig" text="⚙" />
+            </children>
+            <VBox.margin>
+               <Insets />
+            </VBox.margin>
+         </HBox>
       </children>
       <padding>
          <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
