@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
+<properties>
+    <comment>App configuration</comment>
+    <entry key="TIMEOUT">1</entry>
+    <entry key="MIN_ACK">1</entry>
+</properties>

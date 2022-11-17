@@ -1,11 +1,16 @@
 package distributed.clientfx;
 
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.Node;
 import javafx.scene.control.Spinner;
 import javafx.scene.control.SpinnerValueFactory;
 import javafx.scene.control.TextFormatter;
 
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.function.BiConsumer;
 import java.util.function.UnaryOperator;
 
 public class ConfigController {
@@ -21,12 +26,33 @@ public class ConfigController {
     @FXML
     private Spinner<Integer> spinnerAck;
 
+    private void forEachSpinner(BiConsumer<String, Spinner<Integer>> action) {
+        final Map<String, Spinner<Integer>> spinnerMap = Map.of(
+                "TIMEOUT", spinnerTimeout,
+                "MIN_ACK", spinnerAck
+        );
+        spinnerMap.forEach(action);
+    }
+
     public void initialize() {
-        for (Spinner<Integer> spinner : Arrays.asList(spinnerTimeout, spinnerAck)) {
-            spinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 30));
+        forEachSpinner((key, spinner) -> {
+            spinner.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 30,
+                    Integer.parseInt(ClientApplication.getProperty(key))
+            ));
             spinner.getEditor().setTextFormatter(
                     new TextFormatter<Integer>(INTEGER_FILTER)
             );
-        }
+        });
+    }
+
+    @FXML
+    private void saveAction(ActionEvent event) throws IOException {
+        Node node = (Node) event.getSource();
+
+        forEachSpinner((key, spinner) -> {
+            ClientApplication.setProperty(key, spinner.getValue().toString());
+        });
+        ClientApplication.storeProperties();
+        node.getScene().getWindow().hide();
     }
 }

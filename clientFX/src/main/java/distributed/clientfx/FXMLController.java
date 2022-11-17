@@ -42,7 +42,8 @@ import java.util.stream.IntStream;
 
 public class FXMLController {
     private static final char HANDSHAKE_CHAR = 'C';
-    private static final int MINIMUM_ACK = 1;
+    private static final String MINIMUM_ACK = "MIN_ACK";
+    private static final String TIMEOUT = "TIMEOUT";
     private static final UnaryOperator<TextFormatter.Change> FLOAT_FILTER = change -> {
         String newText = change.getControlNewText();
         if (newText.matches("[+-]?([0-9]+([.][0-9]*)?|[.][0-9]+)")) {
@@ -128,7 +129,6 @@ public class FXMLController {
     }
 
     private void logAppend(String message) {
-        //noinspection CodeBlock2Expr
         Platform.runLater(() -> {
             txtLog.appendText(message + "\n");
         });
@@ -220,7 +220,7 @@ public class FXMLController {
     @FXML
     private void openConfig(ActionEvent event) throws IOException {
         Node node = (Node) event.getSource();
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("config.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("config-scene.fxml"));
         Scene scene = new Scene(loader.load());
 
         Stage stage = new Stage();
@@ -311,6 +311,8 @@ public class FXMLController {
                 }
                 pendingMessageReference.set(requestMessage);
                 try {
+                    int minimumAck;
+                    int timeout;
                     do {
                         ackResult = false;
                         acknowledgeSet.clear();
@@ -329,7 +331,9 @@ public class FXMLController {
                         } catch (IOException e) {
                             logAppend(e.getMessage());
                         }
-                    } while (socketChannel.isConnected() && !requestSemaphore.tryAcquire(MINIMUM_ACK, 1, TimeUnit.SECONDS));
+                        minimumAck = Integer.parseInt(ClientApplication.getProperty(MINIMUM_ACK));
+                        timeout = Integer.parseInt(ClientApplication.getProperty(TIMEOUT));
+                    } while (socketChannel.isConnected() && !requestSemaphore.tryAcquire(minimumAck, timeout, TimeUnit.SECONDS));
                     ackResult = true;
                 } catch (InterruptedException ignored) {
                     break;

@@ -28,6 +28,6 @@
            </children>
        </GridPane>
        <Label style="-fx-background-color: #f4f4f4;" text="Configuración" AnchorPane.leftAnchor="24.0" AnchorPane.topAnchor="8.0" />
-       <Button layoutX="72.0" layoutY="90.0" mnemonicParsing="false" prefWidth="32.0" text="Ok" AnchorPane.bottomAnchor="8.0" />
+       <Button layoutX="59.0" layoutY="90.0" mnemonicParsing="false" onAction="#saveAction" text="Guardar" AnchorPane.bottomAnchor="8.0" />
    </children>
 </AnchorPane>
