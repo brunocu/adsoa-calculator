@@ -1,5 +1,5 @@
 rootProject.name = 'distributed'
 include 'shared'
 include 'data-field'
-include 'server'
 include 'clientFX'
+include 'serverFX'

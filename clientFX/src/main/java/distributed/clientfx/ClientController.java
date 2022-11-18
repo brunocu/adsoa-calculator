@@ -40,7 +40,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
 import java.util.stream.IntStream;
 
-public class FXMLController {
+public class ClientController {
     private static final char HANDSHAKE_CHAR = 'C';
     private static final String MINIMUM_ACK = "MIN_ACK";
     private static final String TIMEOUT = "TIMEOUT";

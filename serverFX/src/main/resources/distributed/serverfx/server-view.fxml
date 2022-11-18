@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox alignment="CENTER_LEFT" spacing="8.0" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="distributed.serverfx.ServerController">
+   <children>
+      <Label fx:id="labelUID" text="UID" />
+      <HBox alignment="CENTER_LEFT">
+         <children>
+            <Label text="Services path:" />
+            <Hyperlink fx:id="linkPath" onAction="#hyperlinkAction" text="Hyperlink" />
+         </children>
+      </HBox>
+      <TextArea fx:id="txtLog" prefHeight="200.0" prefWidth="200.0" />
+   </children>
+   <padding>
+      <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
+   </padding>
+</VBox>

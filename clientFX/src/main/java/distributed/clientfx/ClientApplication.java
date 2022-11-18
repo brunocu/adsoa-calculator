@@ -63,7 +63,7 @@ public class ClientApplication extends Application {
     public void start(Stage primaryStage) throws Exception {
         FXMLLoader loader = new FXMLLoader(getClass().getResource("scene.fxml"));
         Parent root = loader.load();
-        FXMLController controller = loader.getController();
+        ClientController controller = loader.getController();
 
         Scene scene = new Scene(root);
 
