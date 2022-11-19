@@ -7,6 +7,7 @@ import distributed.util.UID;
 import javafx.application.Platform;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.scene.control.Button;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
@@ -46,6 +47,8 @@ public class ServerController {
     private Hyperlink linkPath;
     @FXML
     private TextArea txtLog;
+    @FXML
+    private Button btnRecnn;
     //</editor-fold>
     private Thread requestThread;
 
@@ -64,6 +67,7 @@ public class ServerController {
         bindSocket();
         if (socketChannel == null) {
             txtLog.appendText("No available Data Fields\n");
+            btnRecnn.setDisable(false);
         } else {
             requestThread = new Thread(new RequestServer());
             requestThread.start();
@@ -87,7 +91,8 @@ public class ServerController {
                 socketChannel = SocketChannel.open(new InetSocketAddress(port));
                 socketChannel.write(handshakeBuffer);
                 int localPort = ((InetSocketAddress) socketChannel.getLocalAddress()).getPort();
-                txtLog.appendText("[" + localPort + "] Connected to " + port + "\n");
+                txtLog.appendText("[" + localPort + "] Connection to " + port + "\n");
+                handshakeBuffer.clear();
                 break;
             } catch (ConnectException e) {
                 continue;
@@ -107,6 +112,23 @@ public class ServerController {
     @FXML
     private void hyperlinkAction(ActionEvent ignoredEvent) throws IOException {
         Desktop.getDesktop().browse(servicesPath.toUri());
+    }
+
+    @FXML
+    private void reconnectAction(ActionEvent ignoredEvent) {
+        if (requestThread != null && requestThread.isAlive())
+            throw new RuntimeException("Active connection!");
+
+        txtLog.appendText(String.format("Connecting to Data Field on range: %d\u2013%d%n", MIN_PORT, (MIN_PORT + 100)));
+        socketChannel = null;
+        bindSocket();
+        if (socketChannel == null) {
+            txtLog.appendText("No available Data Fields\n");
+        } else {
+            btnRecnn.setDisable(true);
+            requestThread = new Thread(new RequestServer());
+            requestThread.start();
+        }
     }
 
     private class RequestServer implements Runnable {
@@ -166,8 +188,16 @@ public class ServerController {
                     sendMessage(responseMessage);
                 } catch (SocketException e) {
                     // connection closed from server
-                    logAppend("Server closed connection!");
-                    break;
+                    logAppend("Remote connection closed!\nRetrying connection...");
+                    socketChannel = null;
+                    bindSocket();
+                    if (socketChannel == null) {
+                        Platform.runLater(() -> {
+                            txtLog.appendText("No available Data Fields\n");
+                            btnRecnn.setDisable(false);
+                        });
+                        break;
+                    }
                 } catch (IOException | IllegalAccessException | InvocationTargetException e) {
                     logAppend(e.getMessage());
                 } catch (ClassNotFoundException e) {
@@ -176,7 +206,6 @@ public class ServerController {
                     responseDataBuffer.clear();
                 }
             }
-
         }
 
         private Method loadEvalMethod(String service) throws ClassNotFoundException, IOException {

@@ -14,6 +14,11 @@
          </children>
       </HBox>
       <TextArea fx:id="txtLog" prefHeight="200.0" prefWidth="200.0" />
+      <HBox alignment="CENTER">
+         <children>
+            <Button fx:id="btnRecnn" disable="true" mnemonicParsing="false" onAction="#reconnectAction" text="Reconectar" />
+         </children>
+      </HBox>
    </children>
    <padding>
       <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />
