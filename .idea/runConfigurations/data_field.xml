@@ -1,9 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="data-field" type="JarApplication" singleton="false">
-    <option name="JAR_PATH" value="$PROJECT_DIR$/data-field/build/libs/data-field-uber.jar" />
-    <option name="ALTERNATIVE_JRE_PATH" />
-    <method v="2">
-      <option name="Gradle.BeforeRunTask" enabled="false" tasks="shadowJar" externalProjectPath="$PROJECT_DIR$/data-field" vmOptions="" scriptParameters="" />
-    </method>
-  </configuration>
-</component>

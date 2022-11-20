@@ -119,7 +119,7 @@ public class ServerController {
         if (requestThread != null && requestThread.isAlive())
             throw new RuntimeException("Active connection!");
 
-        logAppend(String.format("Connecting to Data Field on range: %d\u2013%d%n", MIN_PORT, (MIN_PORT + 100)));
+        logAppend(String.format("Connecting to Data Field on range: %d\u2013%d", MIN_PORT, (MIN_PORT + 100)));
         socketChannel = null;
         bindSocket();
         if (socketChannel == null) {
