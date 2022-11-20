@@ -4,30 +4,48 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<AnchorPane prefHeight="136.0" xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="distributed.clientfx.ConfigController">
+<VBox xmlns="http://javafx.com/javafx/17.0.2-ea" xmlns:fx="http://javafx.com/fxml/1" fx:controller="distributed.clientfx.ConfigController">
    <children>
-       <GridPane hgap="4.0" layoutX="16.0" layoutY="16.0" style="-fx-border-color: LightGray;" AnchorPane.leftAnchor="16.0" AnchorPane.rightAnchor="16.0" AnchorPane.topAnchor="16.0">
-           <columnConstraints>
-               <ColumnConstraints halignment="RIGHT" />
-               <ColumnConstraints fillWidth="false" halignment="LEFT" hgrow="SOMETIMES" />
-               <ColumnConstraints halignment="LEFT" hgrow="SOMETIMES" minWidth="10.0" />
-           </columnConstraints>
-           <rowConstraints>
-               <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-               <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
-           </rowConstraints>
-           <padding>
-               <Insets bottom="8.0" left="4.0" right="4.0" top="8.0" />
-           </padding>
-           <children>
-               <Label text="Timeout:" />
-               <Spinner fx:id="spinnerTimeout" editable="true" prefWidth="60.0" GridPane.columnIndex="1" />
-               <Label text="seg" GridPane.columnIndex="2" />
-               <Label text="Min ack:" GridPane.rowIndex="1" />
-               <Spinner fx:id="spinnerAck" editable="true" prefWidth="60.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
-           </children>
-       </GridPane>
-       <Label style="-fx-background-color: #f4f4f4;" text="Configuración" AnchorPane.leftAnchor="24.0" AnchorPane.topAnchor="8.0" />
-       <Button layoutX="59.0" layoutY="90.0" mnemonicParsing="false" onAction="#saveAction" text="Guardar" AnchorPane.bottomAnchor="8.0" />
+      <AnchorPane>
+         <children>
+             <GridPane hgap="4.0" layoutX="16.0" layoutY="16.0" style="-fx-border-color: LightGray;" AnchorPane.leftAnchor="8.0" AnchorPane.rightAnchor="8.0" AnchorPane.topAnchor="16.0">
+                 <columnConstraints>
+                     <ColumnConstraints halignment="RIGHT" />
+                     <ColumnConstraints fillWidth="false" halignment="LEFT" hgrow="SOMETIMES" />
+                     <ColumnConstraints halignment="LEFT" hgrow="SOMETIMES" minWidth="10.0" />
+                 </columnConstraints>
+                 <rowConstraints>
+                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                     <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                     <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                 </rowConstraints>
+                 <padding>
+                     <Insets bottom="8.0" left="4.0" right="4.0" top="8.0" />
+                 </padding>
+                 <children>
+                  <Label layoutX="15.0" layoutY="86.0" text="Min port:" />
+                  <Spinner fx:id="spinnerMinPort" editable="true" layoutX="70.0" layoutY="82.0" prefWidth="96.0" GridPane.columnIndex="1" />
+                  <Label layoutX="15.0" layoutY="26.0" text="Max port:" GridPane.rowIndex="1" />
+                  <Spinner fx:id="spinnerMaxPort" editable="true" layoutX="70.0" layoutY="22.0" prefWidth="96.0" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                     <Label text="Timeout:" GridPane.rowIndex="2" />
+                     <Spinner fx:id="spinnerTimeout" editable="true" prefWidth="96.0" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                     <Label text="seg" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+                     <Label text="Min ack:" GridPane.rowIndex="3" />
+                     <Spinner fx:id="spinnerAck" editable="true" prefWidth="96.0" GridPane.columnIndex="1" GridPane.rowIndex="3" />
+                 </children>
+             </GridPane>
+             <Label style="-fx-background-color: #f4f4f4;" text="Configuración" AnchorPane.leftAnchor="24.0" AnchorPane.topAnchor="8.0" />
+         </children>
+      </AnchorPane>
+      <HBox alignment="TOP_CENTER" spacing="8.0">
+         <children>
+             <Button mnemonicParsing="false" onAction="#saveAction" text="Guardar" />
+            <Button mnemonicParsing="false" onAction="#cancelAction" text="Cancelar" />
+         </children>
+         <padding>
+            <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+         </padding>
+      </HBox>
    </children>
-</AnchorPane>
+</VBox>

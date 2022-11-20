@@ -2,6 +2,8 @@
 <!DOCTYPE properties SYSTEM "http://java.sun.com/dtd/properties.dtd">
 <properties>
     <comment>App configuration</comment>
+    <entry key="MIN_PORT">50000</entry>
+    <entry key="MAX_PORT">50100</entry>
     <entry key="TIMEOUT">1</entry>
     <entry key="MIN_ACK">1</entry>
 </properties>

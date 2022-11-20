@@ -16,7 +16,7 @@
       <TextArea fx:id="txtLog" prefHeight="200.0" prefWidth="200.0" />
       <HBox alignment="CENTER">
          <children>
-            <Button fx:id="btnRecnn" disable="true" mnemonicParsing="false" onAction="#reconnectAction" text="Reconectar" />
+            <Button fx:id="btnRecnn" disable="true" mnemonicParsing="false" onAction="#reconnectAction" text="&#128260;" />
          </children>
       </HBox>
    </children>

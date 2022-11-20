@@ -91,13 +91,13 @@ public class ServerController {
                 socketChannel = SocketChannel.open(new InetSocketAddress(port));
                 socketChannel.write(handshakeBuffer);
                 int localPort = ((InetSocketAddress) socketChannel.getLocalAddress()).getPort();
-                txtLog.appendText("[" + localPort + "] Connection to " + port + "\n");
+                logAppend("[" + localPort + "] Connection to " + port);
                 handshakeBuffer.clear();
                 break;
             } catch (ConnectException e) {
                 continue;
             } catch (IOException e) {
-                txtLog.appendText(e.getMessage() + "\n");
+                logAppend(e.getMessage() + "\n");
                 break;
             }
         }
@@ -119,11 +119,11 @@ public class ServerController {
         if (requestThread != null && requestThread.isAlive())
             throw new RuntimeException("Active connection!");
 
-        txtLog.appendText(String.format("Connecting to Data Field on range: %d\u2013%d%n", MIN_PORT, (MIN_PORT + 100)));
+        logAppend(String.format("Connecting to Data Field on range: %d\u2013%d%n", MIN_PORT, (MIN_PORT + 100)));
         socketChannel = null;
         bindSocket();
         if (socketChannel == null) {
-            txtLog.appendText("No available Data Fields\n");
+            logAppend("No available Data Fields\n");
         } else {
             btnRecnn.setDisable(true);
             requestThread = new Thread(new RequestServer());

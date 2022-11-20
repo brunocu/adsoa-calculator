@@ -42,6 +42,8 @@ import java.util.stream.IntStream;
 
 public class ClientController {
     private static final char HANDSHAKE_CHAR = 'C';
+    public static final String MIN_PORT = "MIN_PORT";
+    public static final String MAX_PORT = "MAX_PORT";
     private static final String MINIMUM_ACK = "MIN_ACK";
     private static final String TIMEOUT = "TIMEOUT";
     private static final UnaryOperator<TextFormatter.Change> FLOAT_FILTER = change -> {
@@ -75,6 +77,8 @@ public class ClientController {
     @FXML
     private ToggleGroup toggleGroup;
     @FXML
+    private Button btnRecnn;
+    @FXML
     private RadioButton selLVal;
     @FXML
     private RadioButton selRVal;
@@ -91,31 +95,17 @@ public class ClientController {
         labelUID.setText("UID: " + Long.toHexString(uid).toUpperCase());
 
         // connect to DataField
-        txtLog.appendText("Min port: 50000\n");
-        txtLog.appendText("Port range: 50100\n");
-        for (int port = 50000; port < 50100; port++) {
-            try {
-                socketChannel = SocketChannel.open(new InetSocketAddress(port));
-                socketChannel.write(handshakeBuffer);
-                int localPort = ((InetSocketAddress) socketChannel.getLocalAddress()).getPort();
-                txtLog.appendText("[" + localPort + "] Connected to " + port + "\n");
+        bindSocket();
+        if (socketChannel == null) {
+            txtLog.appendText("No available Data Fields\n");
+            btnRecnn.setDisable(false);
+        } else {
+            requestThread = new Thread(new RequestSender());
+            responseThread = new Thread(new ResponseListener());
 
-                requestThread = new Thread(new RequestSender());
-                responseThread = new Thread(new ResponseListener());
-
-                requestThread.start();
-                responseThread.start();
-                break;
-            } catch (ConnectException e) {
-                continue;
-            } catch (IOException e) {
-                txtLog.appendText(e.getMessage() + "\n");
-                break;
-            }
+            requestThread.start();
+            responseThread.start();
         }
-
-        if (socketChannel == null)
-            txtLog.appendText("No server found\n");
     }
 
     public void shutdown() {
@@ -124,6 +114,27 @@ public class ClientController {
                 socketChannel.close();
             } catch (IOException e) {
                 e.printStackTrace();
+            }
+        }
+    }
+
+    private void bindSocket() {
+        int minPort = Integer.parseInt(ClientApplication.getProperty(MIN_PORT));
+        int maxPort = Integer.parseInt(ClientApplication.getProperty(MAX_PORT));
+        logAppend(String.format("Connecting to Data Field on range: %d\u2013%d", minPort, maxPort));
+        for (int port = minPort; port < maxPort; port++) {
+            try {
+                socketChannel = SocketChannel.open(new InetSocketAddress(port));
+                socketChannel.write(handshakeBuffer);
+                int localPort = ((InetSocketAddress) socketChannel.getLocalAddress()).getPort();
+                logAppend("[" + localPort + "] Connection to " + port);
+                handshakeBuffer.clear();
+                break;
+            } catch (ConnectException e) {
+                continue;
+            } catch (IOException e) {
+                logAppend(e.getMessage());
+                break;
             }
         }
     }
@@ -231,6 +242,26 @@ public class ClientController {
         stage.showAndWait();
     }
 
+    @FXML
+    private void reconnectAction(ActionEvent ignoredEvent) {
+        if (responseThread != null && responseThread.isAlive())
+            throw new RuntimeException("Active connection!");
+
+        socketChannel = null;
+        bindSocket();
+        if (socketChannel == null) {
+            logAppend("No available Data Fields");
+        } else {
+            btnRecnn.setDisable(true);
+
+            requestThread = new Thread(new RequestSender());
+            responseThread = new Thread(new ResponseListener());
+
+            requestThread.start();
+            responseThread.start();
+        }
+    }
+
     private class ResponseListener implements Runnable {
         private final ByteBuffer lengthByteBuffer = ByteBuffer.allocate(Integer.BYTES);
 
@@ -264,9 +295,17 @@ public class ClientController {
                     }
 
 
-                } catch (ClosedByInterruptException | SocketException e) {
-                    // end gracefully
-                    break;
+                } catch (SocketException e) {
+                    logAppend("Remote connection closed!\nRetrying connection...");
+                    socketChannel = null;
+                    bindSocket();
+                    if (socketChannel == null) {
+                        Platform.runLater(() -> {
+                            txtLog.appendText("No available Data Fields\n");
+                            btnRecnn.setDisable(false);
+                        });
+                        break;
+                    }
                 } catch (IOException | ClassNotFoundException e) {
                     logAppend(e.getMessage());
                 } finally {
@@ -274,7 +313,6 @@ public class ClientController {
                     lengthByteBuffer.clear();
                 }
             }
-            logAppend("Server disconnected!");
             requestThread.interrupt();
         }
 

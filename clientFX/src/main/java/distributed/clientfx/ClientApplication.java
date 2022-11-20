@@ -26,15 +26,15 @@ public class ClientApplication extends Application {
                                                               .getLocation()
                                                               .toURI()).getParent().resolve("config.xml");
             PROPERTIES = new Properties();
+            PROPERTIES.loadFromXML(
+                    ClientApplication.class.getResourceAsStream("config.xml")
+            );
             if (Files.exists(USER_CONFIG_PATH)) {
                 PROPERTIES.loadFromXML(
                         new FileInputStream(USER_CONFIG_PATH.toFile())
                 );
-            } else {
-                PROPERTIES.loadFromXML(
-                        ClientApplication.class.getResourceAsStream("config.xml")
-                );
             }
+            storeProperties();
         } catch (IOException | URISyntaxException e) {
             throw new RuntimeException(e);
         }
@@ -61,7 +61,7 @@ public class ClientApplication extends Application {
 
     @Override
     public void start(Stage primaryStage) throws Exception {
-        FXMLLoader loader = new FXMLLoader(getClass().getResource("scene.fxml"));
+        FXMLLoader loader = new FXMLLoader(getClass().getResource("client-scene.fxml"));
         Parent root = loader.load();
         ClientController controller = loader.getController();
 

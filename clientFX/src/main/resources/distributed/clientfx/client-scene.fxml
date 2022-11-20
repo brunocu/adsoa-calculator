@@ -99,6 +99,7 @@
          <HBox alignment="CENTER_RIGHT" spacing="4.0">
             <children>
                <Label fx:id="labelUID" text="Label" />
+               <Button fx:id="btnRecnn" disable="true" mnemonicParsing="false" onAction="#reconnectAction" text="&#128260;" />
                <Button mnemonicParsing="false" onAction="#openConfig" text="⚙" />
             </children>
             <VBox.margin>
