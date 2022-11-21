@@ -13,4 +13,6 @@ public enum ContentCode {
     ACK_DIV,
     // Result
     RES,
+    // Service Injection
+    INY,
 }

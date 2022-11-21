@@ -35,7 +35,7 @@ import java.util.stream.IntStream;
 
 public class ServerController {
     private static final char HANDSHAKE_CHAR = 'C';
-    public static final int MIN_PORT = 50000;
+    private static final int MIN_PORT = 50000;
     private final ByteBuffer handshakeBuffer = ByteBuffer.wrap(new byte[]{(byte) HANDSHAKE_CHAR});
     private long uid;
     private Path servicesPath;

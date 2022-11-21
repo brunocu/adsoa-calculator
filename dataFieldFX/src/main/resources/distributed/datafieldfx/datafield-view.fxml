@@ -24,7 +24,7 @@
             <Label fx:id="labelCells" text="cells" GridPane.columnIndex="3" />
          </children>
       </GridPane>
-      <TextArea fx:id="txtLog" prefHeight="248.0" prefWidth="400.0" />
+      <TextArea fx:id="txtLog" prefHeight="400.0" prefWidth="400.0" />
    </children>
    <padding>
       <Insets bottom="16.0" left="16.0" right="16.0" top="16.0" />

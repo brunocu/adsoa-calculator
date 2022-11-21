@@ -13,8 +13,6 @@ public record Message(
 ) implements Serializable {
     public Message {
         Objects.requireNonNull(contentCode);
-        Objects.requireNonNull(requestUID);
-        Objects.requireNonNull(fingerprint);
 
         if (body != null) {
             body = Arrays.copyOf(body, body.length);
