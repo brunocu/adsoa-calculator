@@ -15,4 +15,9 @@ public enum ContentCode {
     RES,
     // Service Injection
     INY,
+    // Cloning protocol
+    CPY,    // Copy request
+    CPACK,    // Copy acknowledge
+    CPERR,    // Copy error
+    CPC    // Copy complete
 }

@@ -11,7 +11,7 @@ public class MessageBuilder {
     Long requestUID = null;
     Long serviceUID = null;
     Long fingerprint = null;
-    byte[] body;
+    byte[] body = null;
 
     public MessageBuilder() {
     }
@@ -21,7 +21,11 @@ public class MessageBuilder {
         this.requestUID = requestUID;
         this.serviceUID = serviceUID;
         this.fingerprint = fingerprint;
-        this.body = Arrays.copyOf(body, body.length);
+        if (body != null) {
+            this.body = Arrays.copyOf(body, body.length);
+        } else {
+            this.body = null;
+        }
     }
 
     public static MessageBuilder from(Message from) {
@@ -70,10 +74,15 @@ public class MessageBuilder {
     public MessageBuilder digestFingerprint(int numOp) {
         try {
             MessageDigest messageDigest = MessageDigest.getInstance("SHA-1");
+            messageDigest.update(contentCode.name().getBytes());
             messageDigest.update(
                     ByteBuffer.allocate(Long.BYTES).putLong(0, requestUID).array()
             );
-            messageDigest.update(contentCode.name().getBytes());
+            if (serviceUID != null) {
+                messageDigest.update(
+                        ByteBuffer.allocate(Long.BYTES).putLong(0, serviceUID).array()
+                );
+            }
             if (body != null) {
                 messageDigest.update(body);
             }

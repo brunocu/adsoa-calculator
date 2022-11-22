@@ -29,12 +29,12 @@ import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
-import java.nio.channels.ClosedByInterruptException;
 import java.nio.channels.SocketChannel;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.UnaryOperator;
@@ -62,7 +62,8 @@ public class ClientController {
     private final AtomicReference<Message> pendingMessageReference = new AtomicReference<>();
     private final BlockingQueue<Message> requestQueue = new LinkedBlockingQueue<>();
     private final ConcurrentSkipListSet<Long> acknowledgeSet = new ConcurrentSkipListSet<>();
-    private final Semaphore requestSemaphore = new Semaphore(-1);
+    private final Semaphore requestSemaphore = new Semaphore(0);
+    private final SynchronousQueue<Message> messageRendezvous = new SynchronousQueue<>();
     //<editor-fold desc="FXML Nodes">
     @FXML
     private Label labelUID;
@@ -262,6 +263,20 @@ public class ClientController {
         }
     }
 
+    private void sendMessage(Message requestMessage) throws IOException {
+        ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
+        IntStream.range(0, Integer.BYTES).forEach(
+                i -> arrayOutputStream.write(0)
+        );
+        ObjectOutputStream outputStream = new ObjectOutputStream(arrayOutputStream);
+        outputStream.writeObject(requestMessage);
+        outputStream.close();
+        ByteBuffer writeByteBuffer = ByteBuffer.wrap(arrayOutputStream.toByteArray());
+        writeByteBuffer.putInt(0, arrayOutputStream.size() - 4);
+        socketChannel.write(writeByteBuffer);
+    }
+
+
     private class ResponseListener implements Runnable {
         private final ByteBuffer lengthByteBuffer = ByteBuffer.allocate(Integer.BYTES);
 
@@ -283,15 +298,10 @@ public class ClientController {
                         continue;
 
                     switch (message.contentCode()) {
-                        case ACK_ADD:
-                        case ACK_SUB:
-                        case ACK_MUL:
-                        case ACK_DIV:
-                            processAcknowledge(message.fingerprint(), message.serviceUID());
-                            break;
-                        case RES:
-                            processResult(message.body(), message.serviceUID());
-                            break;
+                        case ACK_ADD, ACK_SUB, ACK_MUL, ACK_DIV ->
+                                processAcknowledge(message.fingerprint(), message.serviceUID());
+                        case RES -> processResult(message.body(), message.serviceUID());
+                        case CPACK, CPC, CPERR -> messageRendezvous.put(message);
                     }
 
 
@@ -308,6 +318,9 @@ public class ClientController {
                     }
                 } catch (IOException | ClassNotFoundException e) {
                     logAppend(e.getMessage());
+                } catch (InterruptedException e) {
+                    // thread interrupt
+                    break;
                 } finally {
                     //cleanup
                     lengthByteBuffer.clear();
@@ -349,29 +362,40 @@ public class ClientController {
                 }
                 pendingMessageReference.set(requestMessage);
                 try {
-                    int minimumAck;
-                    int timeout;
-                    do {
-                        ackResult = false;
-                        acknowledgeSet.clear();
-                        requestSemaphore.drainPermits();
+                    while (socketChannel.isConnected()) {
                         try {
-                            ByteArrayOutputStream arrayOutputStream = new ByteArrayOutputStream();
-                            IntStream.range(0, Integer.BYTES).forEach(
-                                    i -> arrayOutputStream.write(0)
-                            );
-                            ObjectOutputStream outputStream = new ObjectOutputStream(arrayOutputStream);
-                            outputStream.writeObject(requestMessage);
-                            outputStream.close();
-                            ByteBuffer writeByteBuffer = ByteBuffer.wrap(arrayOutputStream.toByteArray());
-                            writeByteBuffer.putInt(0, arrayOutputStream.size() - 4);
-                            socketChannel.write(writeByteBuffer);
+                            ackResult = false;
+                            acknowledgeSet.clear();
+                            requestSemaphore.drainPermits();
+                            sendMessage(requestMessage);
+                            int minimumAck = Integer.parseInt(ClientApplication.getProperty(MINIMUM_ACK));
+                            int timeout = Integer.parseInt(ClientApplication.getProperty(TIMEOUT));
+                            if (!requestSemaphore.tryAcquire(minimumAck, timeout, TimeUnit.SECONDS)) {
+                                // send clone request
+                                logAppend("Requesting service replication");
+                                if (!acknowledgeSet.isEmpty())
+                                    for (long firstUID : acknowledgeSet) {
+                                        Message cloneMessage = new MessageBuilder().contentCode(ContentCode.CPY)
+                                                                                   .requestUID(uid)
+                                                                                   .serviceUID(firstUID)
+                                                                                   .build();
+                                        sendMessage(cloneMessage);
+                                        Message ackMessage = messageRendezvous.poll(timeout, TimeUnit.SECONDS);
+                                        if (ackMessage != null && ackMessage.contentCode() == ContentCode.CPACK) {
+                                            Message pollMessage = messageRendezvous.take();
+                                            if (pollMessage.contentCode() == ContentCode.CPC) {
+                                                TimeUnit.SECONDS.sleep(2);
+                                                break;
+                                            }
+                                        }
+                                    }
+                            } else {
+                                break;
+                            }
                         } catch (IOException e) {
                             logAppend(e.getMessage());
                         }
-                        minimumAck = Integer.parseInt(ClientApplication.getProperty(MINIMUM_ACK));
-                        timeout = Integer.parseInt(ClientApplication.getProperty(TIMEOUT));
-                    } while (socketChannel.isConnected() && !requestSemaphore.tryAcquire(minimumAck, timeout, TimeUnit.SECONDS));
+                    }
                     ackResult = true;
                 } catch (InterruptedException ignored) {
                     break;
