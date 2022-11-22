@@ -126,11 +126,13 @@ public class InjectorController {
         Path filePath = Path.of(textFilePath.getText());
         if (Files.exists(filePath)) {
             try (
-                    InputStream fileInputStream = Files.newInputStream(filePath);
+                    InputStream fileInputStream = Files.newInputStream(filePath)
             ) {
+                ContentCode opCodeValue = opCodeChoiceBox.getValue();
+                logAppend(String.format("Injecting operation [%s] from: %s", opCodeValue, filePath.getFileName()));
                 ByteArrayOutputStream fileArrayOutputStream = new ByteArrayOutputStream();
                 ObjectOutputStream fileObjectOutputStream = new ObjectOutputStream(fileArrayOutputStream);
-                fileObjectOutputStream.writeObject(filePath.getFileName().toString());
+                fileObjectOutputStream.writeObject(opCodeValue);
                 fileInputStream.transferTo(fileArrayOutputStream);
                 Message injectionMessage = new MessageBuilder().contentCode(ContentCode.INY)
                                                                .body(fileArrayOutputStream.toByteArray())

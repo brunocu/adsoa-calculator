@@ -13,10 +13,12 @@ import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 
 import java.awt.Desktop;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.ConnectException;
@@ -29,6 +31,7 @@ import java.net.URLClassLoader;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SocketChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.stream.IntStream;
@@ -136,10 +139,10 @@ public class ServerController {
                 ContentCode.ADD,
                 ContentCode.SUB,
                 ContentCode.MUL,
-                ContentCode.DIV
+                ContentCode.DIV,
+                ContentCode.INY
         );
         private final ByteBuffer responseDataBuffer = ByteBuffer.allocate(Float.BYTES);
-
 
         @Override
         public void run() {
@@ -154,38 +157,53 @@ public class ServerController {
                         logAppend("Server closed connection!");
                         break;
                     }
-                    ObjectInputStream objectInputStream = new ObjectInputStream(Channels.newInputStream(socketChannel));
-                    final Message requestMessage = (Message) objectInputStream.readObject();
+                    ObjectInputStream messageObjectInputStream = new ObjectInputStream(Channels.newInputStream(socketChannel));
+                    final Message requestMessage = (Message) messageObjectInputStream.readObject();
                     // process only operations
                     ContentCode requestContentCode = requestMessage.contentCode();
                     if (!SERVER_CONTENT_CODES.contains(requestContentCode))
                         continue;
-                    requestContentCodeName = requestContentCode.name();
 
-                    requestDataBuffer = ByteBuffer.wrap(requestMessage.body());
-                    float aVal = requestDataBuffer.getFloat();
-                    float bVal = requestDataBuffer.getFloat();
-                    logAppend(String.format("Request: %s,%.2f,%.2f", requestContentCodeName, aVal, bVal));
+                    if (requestContentCode == ContentCode.INY) {
+                        // service injection
+                        ByteArrayInputStream bodyArrayInputStream = new ByteArrayInputStream(requestMessage.body());
+                        ObjectInputStream bodyObjectInputStream = new ObjectInputStream(bodyArrayInputStream);
+                        ContentCode opCode = (ContentCode) bodyObjectInputStream.readObject();
+                        logAppend("Received service: " + opCode);
+                        OutputStream fileOutputStream = Files.newOutputStream(
+                                servicesPath.resolve(opCode.name().toLowerCase() + ".jar")
+                        );
+                        fileOutputStream.write(bodyArrayInputStream.readAllBytes());
+                        fileOutputStream.close();
+                    } else {
+                        // service request
+                        requestContentCodeName = requestContentCode.name();
 
-                    Method evalMethod = loadEvalMethod(requestContentCodeName);
-                    ContentCode ackCode = ContentCode.valueOf("ACK_" + requestContentCodeName);
-                    Message ackMessage = MessageBuilder.from(requestMessage)
-                                                       .contentCode(ackCode)
-                                                       .serviceUID(uid)
-                                                       .body(null)
-                                                       .build();
-                    sendMessage(ackMessage);
-                    float responseVal = (float) evalMethod.invoke(null, aVal, bVal);
-                    logAppend("Result: " + responseVal);
+                        requestDataBuffer = ByteBuffer.wrap(requestMessage.body());
+                        float aVal = requestDataBuffer.getFloat();
+                        float bVal = requestDataBuffer.getFloat();
+                        logAppend(String.format("Request: %s,%.2f,%.2f", requestContentCodeName, aVal, bVal));
 
-                    // response message
-                    responseDataBuffer.putFloat(responseVal);
-                    Message responseMessage = MessageBuilder.from(requestMessage)
-                                                            .contentCode(ContentCode.RES)
-                                                            .serviceUID(uid)
-                                                            .body(responseDataBuffer.array())
-                                                            .build();
-                    sendMessage(responseMessage);
+                        Method evalMethod = loadEvalMethod(requestContentCodeName);
+                        ContentCode ackCode = ContentCode.valueOf("ACK_" + requestContentCodeName);
+                        Message ackMessage = MessageBuilder.from(requestMessage)
+                                                           .contentCode(ackCode)
+                                                           .serviceUID(uid)
+                                                           .body(null)
+                                                           .build();
+                        sendMessage(ackMessage);
+                        float responseVal = (float) evalMethod.invoke(null, aVal, bVal);
+                        logAppend("Result: " + responseVal);
+
+                        // response message
+                        responseDataBuffer.putFloat(responseVal);
+                        Message responseMessage = MessageBuilder.from(requestMessage)
+                                                                .contentCode(ContentCode.RES)
+                                                                .serviceUID(uid)
+                                                                .body(responseDataBuffer.array())
+                                                                .build();
+                        sendMessage(responseMessage);
+                    }
                 } catch (SocketException e) {
                     // connection closed from server
                     logAppend("Remote connection closed!\nRetrying connection...");

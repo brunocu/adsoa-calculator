@@ -279,7 +279,7 @@ public class ClientController {
                     final Message message = (Message) objectInputStream.readObject();
                     // accept only ContentCode.RESPONSE messages
                     // accept only messages directed for this cell
-                    if (message.requestUID() != uid)
+                    if (message.requestUID() == null || message.requestUID() != uid)
                         continue;
 
                     switch (message.contentCode()) {
