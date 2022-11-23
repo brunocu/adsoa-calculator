@@ -66,6 +66,16 @@ public class InjectorController {
         }
     }
 
+    public void shutdown() {
+        if (socketChannel != null) {
+            try {
+                socketChannel.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     private void bindSocket() {
         logAppend(String.format("Connecting to Data Field on range: %d\u2013%d", MIN_PORT, (MIN_PORT + 100)));
         for (int port = MIN_PORT; port < (MIN_PORT + 100); port++) {
