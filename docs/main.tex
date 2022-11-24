@@ -180,10 +180,11 @@ Se desarolló una calculadora utilizando una arquitectura ADSOA. Para implementa
     \item[Nodo.] El Nodo es el elemento del canal datos que actúa como intermediario entre las células. Un Nodo mantiene una conexión a todos los demás nodos en la red, y se asegura de que un mensaje se propague a todas las Células.
     \item[Célula.] En el contexto de la arquitectura, una célula puede ser cualquier aplicación que se conectará al canal de datos para comunicarse con las otras células conectadas. Los distintos tipos de célula distinguen qué mensajes procesar o rechazar basado en su código de contenido.
     
-    Para la calculadora se desarrollaron los siguientes tipos de célula:
+    Para el proyecto se desarrollaron los siguientes tipos de célula:
     \begin{description}
         \item[Interfaz de Usuario.] Una interfaz gráfica que permite al usuario introducir operaciones y ver los resultados. También mantiene un registro de texto de todos los mensajes que salen y entran. La interfaz gráfica se muestra en la Figura \ref{fig:demo}.
         \item[Servidor.] El servidor es un manejador de servicios SOA. Recibe una operación de usuario, carga de manera dinámica la clase para evaluar la operación y envía el resultado.
+        \item[Inyector de servicios.] Una interfaz de administración que permite cargar un microservicio a todos los servidores conectados al campo de datos.
     \end{description}
 \end{description}
 
@@ -194,15 +195,15 @@ El mensaje se encapsula en un registro inmutable con los siguientes campos, que 
     \item[contentCode] Código de Contenido. Los posibles códigos de contenido se describen en la Tabla \ref{tab:cc}.
     \item[requestUID] El identificador único de la célula que solicita la operación.
     \item[serviceUID] El identificador único de la célula que devuelve el resultado. Este campo sólo se usa cuando el código de contenido es \texttt{RES} o \texttt{ACK}, de lo contrario es nulo.
-    \item[fingerprint] La clave única de evento. La clave se obtiene de los primeros 4 bits generados por un hash SHA-1 de la representación en bytes del código de contenido, el identificador del cliente, el contenido del mensaje y el índice de solicitud.
     \item[body] Un arreglo de bytes con el contenido del mensaje. Puede ser nulo.
+    \item[fingerprint] La clave única de evento. La clave se obtiene de los primeros 4 bits generados por un hash SHA-1 de la representación en bytes de los campos del mensaje.
 \end{description}
 
 El mensaje se serializa utilizando la interfaz \texttt{java.io.Serializable} para transmitirlo como un stream de bytes.
 
 \begin{figure}[hbt]
     \centering
-    \includegraphics[width=0.9\columnwidth]{message.png}
+    \includegraphics[width=0.5\columnwidth]{message.png}
     \caption{Diagrama de clase del Mensaje.}
     \label{fig:message}
 \end{figure}
@@ -223,6 +224,11 @@ El mensaje se serializa utilizando la interfaz \texttt{java.io.Serializable} par
     \texttt{ACK\_MUL}    & Acuse de multiplicación recibida. & Interfaz          \\ \hline
     \texttt{ACK\_DIV}    & Acuse de división recibida.       & Interfaz          \\ \hline
     \texttt{RES}         & Resultado.                        & Interfaz          \\ \hline
+    \texttt{INY}         & Inyección de servicio.            & Servidor          \\ \hline
+    \texttt{CPY}         & Solicitud de clonación.           & Servidor          \\ \hline
+    \texttt{CPACK}       & Acuse de inicio de clonación.     & Interfaz          \\ \hline
+    \texttt{CPC}         & Confirmación de clonación.        & Interfaz          \\ \hline
+    \texttt{CPERR}       & Error de clonación.               & Interfaz          \\ \hline
     \end{tabular}
 \end{table}
 

@@ -3,30 +3,12 @@
 left to right direction
 skinparam linetype ortho
 
-enum ContentCode {
-  ADD
-  SUB
-  MUL
-  DIV
-  ACK_ADD
-  ACK_SUB
-  ACK_MUL
-  ACK_DIV
-  RES
-}
-hide ContentCode methods
 class Message <<Serializable Record>> {
   - contentCode: ContentCode
   - requestUID: Long
   - serviceUID: Long
   - fingerprint: Long
   - body: byte[]
-  + contentCode(): ContentCode
-  + requestUID(): Long
-  + serviceUID(): Long
-  + fingerprint(): Long
-  + body(): byte[]
 }
-
-Message     "1" *-- "1" ContentCode
+hide Message methods
 @enduml
