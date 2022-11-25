@@ -98,7 +98,7 @@ public class ClientController {
         // connect to DataField
         bindSocket();
         if (socketChannel == null) {
-            txtLog.appendText("No available Data Fields\n");
+            logAppend("No available Data Fields");
             btnRecnn.setDisable(false);
         } else {
             requestThread = new Thread(new RequestSender());
@@ -372,8 +372,8 @@ public class ClientController {
                             int timeout = Integer.parseInt(ClientApplication.getProperty(TIMEOUT));
                             if (!requestSemaphore.tryAcquire(minimumAck, timeout, TimeUnit.SECONDS)) {
                                 // send clone request
-                                logAppend("Requesting service replication");
-                                if (!acknowledgeSet.isEmpty())
+                                if (!acknowledgeSet.isEmpty()) {
+                                    logAppend("Requesting service replication");
                                     for (long firstUID : acknowledgeSet) {
                                         Message cloneMessage = new MessageBuilder().contentCode(ContentCode.CPY)
                                                                                    .requestUID(uid)
@@ -389,6 +389,7 @@ public class ClientController {
                                             }
                                         }
                                     }
+                                }
                             } else {
                                 break;
                             }

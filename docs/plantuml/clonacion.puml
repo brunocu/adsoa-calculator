@@ -1,0 +1,14 @@
+@startuml cloning
+' Sequence Diagram
+participant Requester
+participant Server
+
+Requester -> Server: Cloning request
+Server --> Requester: Acknowledge
+
+create NewServer
+Server -> NewServer: Copy
+
+Server -> Requester: Cloning complete
+
+@enduml

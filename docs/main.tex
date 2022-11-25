@@ -164,11 +164,18 @@ La arquitectura ADS está conformada por los siguientes componentes\cite{leguiza
     \item[Codigo de Contenido.] Es parte del protocolo de comunicación entre entidades. Cuando una entidad envía un mensaje, adjuntan un Código de Contenido. Las entidades conectadas aceptarán o descartarán el mensaje según los Códigos de Contenidos a los que estén registrados.
 \end{description}
 
+\begin{figure}[hbt]
+    \centering
+    \includegraphics[width=0.75\columnwidth]{adsoa_architecture.png}
+    \caption{Arquitectura ADSOA}
+    \label{fig:adsoa}
+\end{figure}
+
 \section{Solución}
 
 \begin{figure}[hbt]
     \centering
-    \includegraphics[width=\columnwidth]{node_components.png}
+    \includegraphics[width=0.9\columnwidth]{node_components.png}
     \caption{Componentes del Nodo.}
     \label{fig:components}
 \end{figure}
@@ -184,7 +191,7 @@ Se desarolló una calculadora utilizando una arquitectura ADSOA. Para implementa
     \begin{description}
         \item[Interfaz de Usuario.] Una interfaz gráfica que permite al usuario introducir operaciones y ver los resultados. También mantiene un registro de texto de todos los mensajes que salen y entran. La interfaz gráfica se muestra en la Figura \ref{fig:demo}.
         \item[Servidor.] El servidor es un manejador de servicios SOA. Recibe una operación de usuario, carga de manera dinámica la clase para evaluar la operación y envía el resultado.
-        \item[Inyector de servicios.] Una interfaz de administración que permite cargar un microservicio a todos los servidores conectados al campo de datos.
+        \item[Inyector de servicios.] Una interfaz de administración que permite cargar un microservicio a todos los servidores conectados al canal de datos.
     \end{description}
 \end{description}
 
@@ -194,9 +201,9 @@ El mensaje se encapsula en un registro inmutable con los siguientes campos, que 
 \begin{description}
     \item[contentCode] Código de Contenido. Los posibles códigos de contenido se describen en la Tabla \ref{tab:cc}.
     \item[requestUID] El identificador único de la célula que solicita la operación.
-    \item[serviceUID] El identificador único de la célula que devuelve el resultado. Este campo sólo se usa cuando el código de contenido es \texttt{RES} o \texttt{ACK}, de lo contrario es nulo.
+    \item[serviceUID] El identificador único de la célula que devuelve el resultado. Este campo se usa cuando un servidor envía un mensaje para identificarse, o para solicitar una operación de un servidor particular, de lo contrario es nulo.
     \item[body] Un arreglo de bytes con el contenido del mensaje. Puede ser nulo.
-    \item[fingerprint] La clave única de evento. La clave se obtiene de los primeros 4 bits generados por un hash SHA-1 de la representación en bytes de los campos del mensaje.
+    \item[fingerprint] La clave única de evento. La clave se obtiene de los primeros 4 bits generados por un hash SHA-1 de la representación en bytes de los campos del mensaje concatenados.
 \end{description}
 
 El mensaje se serializa utilizando la interfaz \texttt{java.io.Serializable} para transmitirlo como un stream de bytes.
@@ -219,14 +226,14 @@ El mensaje se serializa utilizando la interfaz \texttt{java.io.Serializable} par
     \texttt{SUB}         & Operación de resta.               & Servidor          \\ \hline
     \texttt{MUL}         & Operación de multiplicación.      & Servidor          \\ \hline
     \texttt{DIV}         & Operación de división.            & Servidor          \\ \hline
+    \texttt{INY}         & Inyección de servicio.            & Servidor          \\ \hline
+    \texttt{CPY}         & Solicitud de clonación.           & Servidor          \\ \hline
     \texttt{ACK\_ADD}    & Acuse de suma recibida.           & Interfaz          \\ \hline
     \texttt{ACK\_SUB}    & Acuse de resta recibida.          & Interfaz          \\ \hline
     \texttt{ACK\_MUL}    & Acuse de multiplicación recibida. & Interfaz          \\ \hline
     \texttt{ACK\_DIV}    & Acuse de división recibida.       & Interfaz          \\ \hline
     \texttt{RES}         & Resultado.                        & Interfaz          \\ \hline
-    \texttt{INY}         & Inyección de servicio.            & Servidor          \\ \hline
-    \texttt{CPY}         & Solicitud de clonación.           & Servidor          \\ \hline
-    \texttt{CPACK}       & Acuse de inicio de clonación.     & Interfaz          \\ \hline
+    \texttt{CPACK}       & Acuse de solicitud de clonación.  & Interfaz          \\ \hline
     \texttt{CPC}         & Confirmación de clonación.        & Interfaz          \\ \hline
     \texttt{CPERR}       & Error de clonación.               & Interfaz          \\ \hline
     \end{tabular}
@@ -261,25 +268,74 @@ El nodo se implementó con la librería de comunicación asíncrona de Java \tex
     \end{tabular}
 \end{table}
 
+\begin{figure}[hbt]
+    \centering
+    \includegraphics[width=0.7\columnwidth]{nodefx.png}
+    \caption{Interfaz gráfica para el nodo. En la parte superior se registra el puerto vinculado y la cuenta de nodos conectados al canal de datos y células conectadas al nodo. Se puede observar el registro de transferencias en el historial de comunicación.}
+    \label{fig:nodefx}
+\end{figure}
+
 \subsection{Células}
 
-Cuando se executa una célula (Interfaz o Servidor), se intenta establecer una conexión TCP al primer Nodo disponible en un rango de puertos proporcionados por el usuario (\texttt{50000-50100} por defecto).
+Cuando se executa una célula (Interfaz o Servidor), se intenta establecer una conexión TCP al primer Nodo disponible en un rango de puertos proporcionados por el usuario (\texttt{50000-50100} por defecto). Si en algún momento se cierra la conexión de manera inesperada, la célula intenta restablecer la conexión en el mismo rango de puertos.
 
 Cuando una célula recibe un mensaje del Nodo, puede decidir procesarlo o rechazarlo leyendo su código de contenido de acuerdo a la Tabla \ref{tab:cc}.
 
-\begin{figure}[hbt]
+\subsubsection{Interfaz de Usuario}
+
+Cuando el usuario inicia una operación, esta se enfila en una cola de procesamiento. Un hilo del programa monitorea el primer mensaje en fila y espera a recibir mensajes de acuse de un servidor. Para enviar la siguiente operación en cola, el programa debe recibir una cantidad determinada de acuses en un tiempo determinado (3 acuses en 1 segundo por defecto).
+
+Si el programa no recibe la cantidad de acuses esperados, puede realizar dos acciones. Si no recibió ningún acuse el programa sigue enviando la solicitud cada que se vence el plazo de tiempo hasta recibir una respuesta. Si se recibió por lo menos un acuse de recibido, esto permite iniciar el proceso de autorecuperación que se describe a detalle en la sección \ref{sec:recov}.
+
+Cuando una interfaz recibe un mensaje de un nodo, primero verifica que la huella de solicitante coincida con su propia huella, de lo contrario descarta el mensaje.
+Si el mensaje contiene un resultado, sólo lo mostrará al usuario si el mensaje con la misma clave ya tiene el número mínimo de acuses.
+
+\begin{figure}[htb]
     \centering
     \includegraphics[width=0.9\columnwidth]{demo.png}
     \caption{Interfaz gráfica de la calculadora. Se puede observar en el registro el historial de comunicación con el Nodo al que está conectada.}
     \label{fig:demo}
 \end{figure}
 
-\subsubsection{Interfaz de Usuario}
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.9\columnwidth]{config.png}
+    \caption{Ventana de configuración.}
+    \label{fig:config}
+\end{figure}
 
-Cuando el usuario inicia una operación, esta se enfila en una cola de procesamiento. Un hilo del programa monitorea el primer mensaje en fila y espera a recibir mensajes de acuse de un servidor. Para enviar la siguiente operación en cola, el programa debe recibir una cantidad determinada de acuses en un tiempo determinado (3 acuses en 1 segundo por defecto).
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.7\columnwidth]{injectorfx.png}
+    \caption{Interfaz gráfica del inyector de servicios. Se selecciona la operación que se envía y el archivo que se enviará a través del canal de datos.}
+    \label{fig:injector}
+\end{figure}
 
-Cuando una interfaz recibe un mensaje de un nodo, primero verifica que la huella de solicitante coincida con su propia huella, de lo contrario descarta el mensaje.
-Si el mensaje contiene un resultado, sólo lo mostrará al usuario si el mensaje con la misma clave ya tiene el número mínimo de acuses.
+\begin{figure}[htb]
+    \centering
+    \includegraphics[width=0.7\columnwidth]{serverfx.png}
+    \caption{Interfaz gráfica del servidor. Se muestra la ruta desde donde se cargan los servicios. Se puede observar la resolución de una solicitud de operación y una inyección de servicio en el historial de comunicación.}
+    \label{fig:server}
+\end{figure}
+
+\section{Autorecuperación}\label{sec:recov}
+
+Si hay por lo menos un servidor con el servicio solicitado, es posible la autorecuperación automática del sistema. Un reto importante en el proceso de clonación es evitar la generación de múltiples copias indiscriminadas, que en un organismo vivo sería un cáncer.
+
+El proceso inicia cuando expira el tiempo de tolerancia para recibir los acuses requeridos en una célula solicitante. La célula guarda un registro de los acuses recibidos con el identificador del servidor que lo envió. Se selecciona el primer servidor en enviar una respuesta como la célula saludable que se clonará a si misma. Se envia un mensaje de solicitud de clonación (\texttt{CPY}) con el identificador del servidor para que este pueda identificar que va dirigido exclusivamente a él.
+
+Cuando el servidor recibe la solicitud de clonación, debe enviar de regreso un mensaje de confirmación a la célula solicitante. Al enviar esta confirmación se garantiza que el sistema continue con el proceso. Si no se recibe la confirmación en un límite de tiempo, se asume que hubo un error en el proceso de clonación, y se reinicia con el siguiente servidor en la lista de acuses.
+
+Después de enviar la confirmación, el servidor generara una copia de sí mismo en el mismo estado, es decir, incluyendo los servicios que tenga cargado, e iniciará un proceso independiente. Finalmente, se enviará una notificación de que se completó el proceso de clonación al que la célula solicitante reaccionará volviendo a enviar la solicitud de operación que causó el proceso de clonación en primer lugar. Si se produce un error durante el proceso de copia, también se notificará a la selula solicitante para que se vuelva a enviar la solicitud de clonación al siguiente servidor en la lista de acuses.
+
+Si se llega al final de la lista de acuses y no se logró completar el proceso de clonación, la célula solicitante continuará su proceso de solicitud de operación como si no hubiera recibido ningún acuse.
+
+\begin{figure}[hbt]
+    \centering
+    \includegraphics[width=0.7\columnwidth]{cloning.png}
+    \caption{Ejecución correcta del protocolo de clonación.}
+    \label{fig:cloning}
+\end{figure}
 
 \section{Conclusiones}
 
